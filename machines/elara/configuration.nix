@@ -3,29 +3,48 @@
 {
   imports = [
     ./hardware-configuration.nix
+    ../../modules/system/common.nix
+    ../../modules/system/networking.nix
+    ../../modules/system/desktop.nix
   ];
 
-  # Example hostname
+  # Machine-specific settings.
   networking.hostName = "elara";
 
-  # Example SSH config (using the same SSH key on all machines)
+  # User accounts.
   users.users.ex1tium = {
     isNormalUser = true;
-    openssh.authorizedKeys.keys = [
-      # Replace this line with your real SSH public key(s).
-      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD..."
+    description = "ex1tium";
+    extraGroups = [ "networkmanager" "wheel" ];
+    packages = with pkgs; [
+      kdePackages.kate
     ];
+    home = "/home/ex1tium";
   };
 
-  # Example usage of sops-nix + GPG
-  imports = [
-    "${pkgs.path}/nixos/modules/security/ssh/sshd.nix"
-    ../..//modules/features/secrets.nix
+  # Packages specific to this machine.
+  environment.systemPackages = with pkgs; [
+    git
+    vim
+    wget
+    tree
+    spice-vdagent
+    xorg.xf86videoqxl
+    xorg.xrandr
+    xsel
+    xclip
   ];
 
-  # You can store your private GPG key in an encrypted sops-nix file
-  # and have NixOS place it in /home/ex1tium/.gnupg or similar location if needed.
+  # Enable QEMU Guest Agent and SPICE services.
+  services.qemuGuest.enable = true;
+  services.spice-vdagentd.enable = true;
 
-  services.openssh.enable = true;
-  # More system config ...
+  # XRDP for remote desktop.
+  services.xrdp = {
+    enable = true;
+    defaultWindowManager = "startplasma-x11"; # Use X11 with KDE Plasma.
+  };
+
+  # Browser installation.
+  programs.firefox.enable = true;
 }
