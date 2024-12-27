@@ -67,9 +67,6 @@
       ".." = "cd ..";
       "..." = "cd ../..";
       "....." = "cd ../../..";
-      update = "sudo nixos-rebuild switch --flake .#";
-      rebuild = "sudo nixos-rebuild switch --flake .#";
-      hm = "home-manager switch --flake .#";
     };
   };
 
