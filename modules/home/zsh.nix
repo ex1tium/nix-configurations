@@ -14,7 +14,6 @@
       plugins = [
         "git"
       ];
-      theme = "powerlevel10k/powerlevel10k";
     };
 
     # Additional zsh plugins not included in oh-my-zsh
@@ -35,14 +34,21 @@
         name = "zsh-autocomplete";
         src = pkgs.zsh-autocomplete;
       }
+      {
+        name = "powerlevel10k";
+        src = pkgs.zsh-powerlevel10k;
+        file = "share/zsh-powerlevel10k/powerlevel10k.zsh-theme";
+      }
     ];
 
-    # Initialize powerlevel10k
     initExtra = ''
       # Source powerlevel10k instant prompt
       if [[ -r "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh" ]]; then
         source "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh"
       fi
+
+      # Enable powerlevel10k theme
+      source ${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/powerlevel10k.zsh-theme
 
       # Source p10k config
       [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
@@ -60,6 +66,7 @@
       la = "ls -la";
       ".." = "cd ..";
       "..." = "cd ../..";
+      "....." = "cd ../../..";
       update = "sudo nixos-rebuild switch --flake .#";
       rebuild = "sudo nixos-rebuild switch --flake .#";
       hm = "home-manager switch --flake .#";
