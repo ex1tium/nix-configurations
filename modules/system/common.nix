@@ -1,50 +1,69 @@
+# Common system configuration module
+# This module contains settings that are shared across all machines
+
 { config, pkgs, ... }:
 {
-  # Bootloader settings (common to most machines).
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = true;
-  boot.loader.systemd-boot.configurationLimit = 5;
+  # Boot Configuration
+  boot.loader = {
+    # Use systemd-boot as the bootloader
+    systemd-boot.enable = true;
+    # Allow modification of EFI boot variables
+    efi.canTouchEfiVariables = true;
+    # Limit the number of generations kept in the boot menu
+    systemd-boot.configurationLimit = 5;
+  };
 
-  # Garbage collection.
+  # Automatic System Maintenance
   nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 7d";
+    automatic = true;        # Enable automatic garbage collection
+    dates = "weekly";       # Run GC once per week
+    options = "--delete-older-than 7d";  # Remove generations older than 7 days
   };
 
-  # Set time zone.
-  time.timeZone = "Europe/Helsinki";
+  # Time and Locale Settings
+  time.timeZone = "Europe/Helsinki";  # Set system timezone
 
-  # Set internationalization properties.
-  i18n.defaultLocale = "en_US.UTF-8";
-  i18n.extraLocaleSettings = {
-    LC_ADDRESS = "fi_FI.UTF-8";
-    LC_IDENTIFICATION = "fi_FI.UTF-8";
-    LC_MEASUREMENT = "fi_FI.UTF-8";
-    LC_MONETARY = "fi_FI.UTF-8";
-    LC_NAME = "fi_FI.UTF-8";
-    LC_NUMERIC = "fi_FI.UTF-8";
-    LC_PAPER = "fi_FI.UTF-8";
-    LC_TELEPHONE = "fi_FI.UTF-8";
-    LC_TIME = "fi_FI.UTF-8";
+  # Internationalization Settings
+  i18n = {
+    defaultLocale = "en_US.UTF-8";  # Default system language
+    # Regional format settings for Finland
+    extraLocaleSettings = {
+      LC_ADDRESS = "fi_FI.UTF-8";        # Address format
+      LC_IDENTIFICATION = "fi_FI.UTF-8";  # User information
+      LC_MEASUREMENT = "fi_FI.UTF-8";     # Measurement units
+      LC_MONETARY = "fi_FI.UTF-8";        # Currency format
+      LC_NAME = "fi_FI.UTF-8";           # Name format
+      LC_NUMERIC = "fi_FI.UTF-8";        # Number format
+      LC_PAPER = "fi_FI.UTF-8";          # Paper size
+      LC_TELEPHONE = "fi_FI.UTF-8";      # Phone number format
+      LC_TIME = "fi_FI.UTF-8";           # Time format
+    };
   };
 
-  # Enable PipeWire for sound.
+  # Audio Configuration
+  # Disable PulseAudio in favor of PipeWire
   hardware.pulseaudio.enable = false;
+  # Enable RealtimeKit for better audio performance
   security.rtkit.enable = true;
+  # PipeWire Configuration
   services.pipewire = {
-    enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    pulse.enable = true;
+    enable = true;           # Enable PipeWire audio server
+    alsa.enable = true;     # ALSA support
+    alsa.support32Bit = true; # 32-bit ALSA support
+    pulse.enable = true;    # PulseAudio compatibility
   };
 
-  # Allow unfree packages.
-  nixpkgs.config.allowUnfree = true;
+  # Package Management
+  nixpkgs.config.allowUnfree = true;  # Allow proprietary packages
 
-  # Default system state version.
+  # System State Version
+  # This value determines how to do future updates
+  # DO NOT CHANGE THIS after setting it initially!
   system.stateVersion = "24.11";
 
-  # Enable the Flakes feature and the accompanying new nix command-line tool
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  # Nix Features
+  nix.settings.experimental-features = [
+    "nix-command"  # Enable new nix command-line interface
+    "flakes"       # Enable flakes feature for better reproducibility
+  ];
 }

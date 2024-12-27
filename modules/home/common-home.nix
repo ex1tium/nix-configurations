@@ -1,11 +1,36 @@
+# Common Home Manager Configuration Module
+# This module defines user-specific configurations that are managed by Home Manager
+# These settings will be applied to any user that includes this module
+
 { config, pkgs, ... }:
 {
-  # Example user-level settings or dotfiles
+  # User-specific Package Installation
   home.packages = [
-    pkgs.bat
-    pkgs.exa
+    pkgs.bat    # Modern replacement for cat
+    pkgs.exa    # Modern replacement for ls
+    # Add more user-specific packages here
   ];
 
-  # Example to include your .zshrc or p10k theme from dotfiles
-  home.file.".zshrc".source = ../../dotfiles/zshrc;
+  # Dotfile Management
+  # Home Manager can manage your dotfiles by linking them from a source location
+  home.file = {
+    # Link .zshrc from the dotfiles directory
+    ".zshrc".source = ../../dotfiles/zshrc;
+    
+    # Example of other dotfiles you might want to manage:
+    # ".gitconfig".source = ../../dotfiles/gitconfig;
+    # ".vimrc".source = ../../dotfiles/vimrc;
+  };
+
+  # You can also add other Home Manager configurations here:
+  # programs.git = {
+  #   enable = true;
+  #   userName = "Your Name";
+  #   userEmail = "your.email@example.com";
+  # };
+  
+  # programs.zsh = {
+  #   enable = true;
+  #   # ZSH specific configurations
+  # };
 }

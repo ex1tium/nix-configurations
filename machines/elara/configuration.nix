@@ -1,52 +1,72 @@
+# Configuration for the 'elara' machine
+# This file contains machine-specific settings and configurations
+
+# The function takes three arguments:
+# - config: The current configuration
+# - pkgs: The nixpkgs package set
+# - ...: Other arguments that might be passed
 { config, pkgs, ... }:
 
 {
+  # Import other configuration modules
   imports = [
+    # Hardware-specific configuration (automatically generated)
     ./hardware-configuration.nix
+    # Common system settings shared across machines
     ../../modules/system/common.nix
+    # Network configuration settings
     ../../modules/system/networking.nix
+    # Desktop environment settings
     ../../modules/system/desktop.nix
   ];
 
-  nix.settings.cores = 4; # Replace 2 with a lower number suitable for your VM
+  # Nix-specific settings
+  nix.settings.cores = 4; # Number of cores to use for building
 
-  # Machine-specific settings.
-  networking.hostName = "elara";
+  # Basic network configuration
+  networking.hostName = "elara"; # Set the machine's hostname
 
-  # User accounts.
+  # User account configuration
   users.users.ex1tium = {
-    isNormalUser = true;
-    description = "ex1tium";
-    extraGroups = [ "networkmanager" "wheel" ];
-    packages = with pkgs; [
-      kdePackages.kate
+    isNormalUser = true;     # This is a regular user account (not system)
+    description = "ex1tium"; # Full name or description
+    extraGroups = [
+      "networkmanager"       # Allows network management
+      "wheel"               # Enables sudo access
     ];
-    home = "/home/ex1tium";
+    # User-specific packages
+    packages = with pkgs; [
+      kdePackages.kate      # KDE text editor
+    ];
+    home = "/home/ex1tium"; # Home directory location
   };
 
-  # Packages specific to this machine.
+  # System-wide packages specific to this machine
   environment.systemPackages = with pkgs; [
-    git
-    vim
-    wget
-    tree
-    spice-vdagent
-    xorg.xf86videoqxl
-    xorg.xrandr
-    xsel
-    xclip
+    git                     # Version control
+    vim                     # Text editor
+    wget                    # File download utility
+    tree                    # Directory listing tool
+    spice-vdagent          # SPICE guest agent for VMs
+    xorg.xf86videoqxl      # QXL video driver for VMs
+    xorg.xrandr            # Screen resolution management
+    xsel                   # X selection tool
+    xclip                  # Clipboard tool
   ];
 
-  # Enable QEMU Guest Agent and SPICE services.
+  # Virtual Machine Services
+  # Enable QEMU guest agent for better VM integration
   services.qemuGuest.enable = true;
+  # Enable SPICE agent for clipboard sharing and resolution handling
   services.spice-vdagentd.enable = true;
 
-  # XRDP for remote desktop.
+  # Remote Desktop Configuration
   services.xrdp = {
     enable = true;
-    defaultWindowManager = "startplasma-x11"; # Use X11 with KDE Plasma.
+    # Use KDE Plasma with X11 as the default session
+    defaultWindowManager = "startplasma-x11";
   };
 
-  # Browser installation.
-  programs.firefox.enable = true;
+  # Browser Configuration
+  programs.firefox.enable = true; # Install and enable Firefox
 }
