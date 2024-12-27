@@ -17,14 +17,68 @@ This repository contains multi-machine NixOS configurations using Flakes, Home M
    sudo nixos-rebuild switch --flake .#${MACHINE_NAME}
    ```
 
+## GPG Key Setup
+
+### Initial Setup (Per Machine)
+1. **Prepare GPG directory**:
+   ```bash
+   # Create fresh GPG directory
+   mkdir -m 700 ~/.gnupg
+   
+   # Configure GPG
+   cat > ~/.gnupg/gpg.conf << EOF
+   use-agent
+   pinentry-mode loopback
+   EOF
+   
+   cat > ~/.gnupg/gpg-agent.conf << EOF
+   allow-loopback-pinentry
+   enable-ssh-support
+   EOF
+   
+   chmod 600 ~/.gnupg/gpg.conf ~/.gnupg/gpg-agent.conf
+   ```
+
+2. **Import keys**:
+   ```bash
+   # Import public key first
+   gpg --import path/to/public-key.asc
+   
+   # Import private key
+   gpg --allow-secret-key-import --import path/to/private-key.asc
+   
+   # Set trust level
+   gpg --edit-key your.email@example.com
+   > trust
+   > 5
+   > y
+   > quit
+   ```
+
+3. **Verify setup**:
+   ```bash
+   # Test signing
+   echo "test" | gpg --clearsign
+   
+   # Check key details
+   gpg -K --with-keygrip
+   ```
+
+### Git Signing Configuration
+```bash
+git config --global user.signingkey your.email@example.com
+git config --global commit.gpgsign true
+```
+
 ## Secrets
 
-- All secrets (e.g., GPG private keys, API tokens) are stored in `/secrets` as encrypted files using sops-nix.
-- Make sure to have the corresponding GPG private key when building or deploying.
+- All secrets are stored in `/secrets` as encrypted files using sops-nix
+- Secrets are encrypted using GPG keys configured in `.sops.yaml`
+- Make sure to have the corresponding GPG private key when building or deploying
 
 ## Home Manager
 
-- Home Manager configs are in `modules/home`.
+- Home Manager configs are in `modules/home`
 - Apply user-level configs via:
   ```bash
   home-manager switch --flake .#someUser
@@ -39,7 +93,6 @@ This repository contains multi-machine NixOS configurations using Flakes, Home M
 
 ## Next Steps
 
-- Move your existing `configuration.nix` and `hardware-configuration.nix` into `machines/elara/`.
-- Integrate any existing logic into the shared modules (system, home, etc.).
-- Update SSH keys, PGP keys, and secrets as needed.
-
+- Move your existing `configuration.nix` and `hardware-configuration.nix` into `machines/elara/`
+- Integrate any existing logic into the shared modules (system, home, etc.)
+- Update SSH keys, PGP keys, and secrets as needed

@@ -15,14 +15,9 @@
       sshKeyPaths = [];  # We're using pure GPG, not SSH keys
     };
     
-    # Automatically create directories for secrets
-    defaultSymlinkPath = "/run/secrets";
-    
     # Example secret definition (uncomment and modify as needed)
     # secrets = {
     #   example_secret = {
-    #     # Specify the path where the decrypted secret will be mounted
-    #     path = "/run/secrets/example_secret";
     #     # Optional: specify which users/groups can access this secret
     #     owner = "ex1tium";
     #     group = "users";

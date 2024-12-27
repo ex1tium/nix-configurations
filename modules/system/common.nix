@@ -42,12 +42,12 @@
 
   # GPG Configuration
   programs.gnupg = {
-    enable = true;           # Enable GPG
     agent = {
       enable = true;        # Enable GPG agent
       enableSSHSupport = true;  # Use GPG agent for SSH
-      pinentryFlavor = "gtk2";  # Use GTK pinentry for desktop systems
     };
+    # Enable GPG agent socket
+    package = pkgs.gnupg;   # Use the latest stable GnuPG
   };
 
   # Install GPG-related packages
