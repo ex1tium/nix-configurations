@@ -1,48 +1,43 @@
-# Common Home Manager Configuration Module
-# This module defines user-specific configurations that are managed by Home Manager
-# These settings will be applied to any user that includes this module
+# Common home configuration module
+# This module contains settings that are shared across all users
 
 { config, pkgs, ... }:
+
 {
   # Import ZSH configuration
   imports = [
     ./zsh.nix
   ];
 
-  # Allow unfree packages
-  nixpkgs.config.allowUnfree = true;
-
-  # Let Home Manager install and manage itself.
+  # Enable home-manager
   programs.home-manager.enable = true;
 
   # Specify package versions
-  home.stateVersion = "23.11";
+  home.stateVersion = "24.11";  # Use the same version as system config
+
+  # Allow unfree packages
+  nixpkgs.config.allowUnfree = true;
 
   # User-specific Package Installation
   home.packages = [
-    pkgs.bat    # Modern replacement for cat
-    pkgs.exa    # Modern replacement for ls
     # Add more user-specific packages here
   ];
 
   # Dotfile Management
-  # Home Manager can manage your dotfiles by linking them from a source location
+  # Link configuration files from the dotfiles directory
   home.file = {
-    # Link .zshrc from the dotfiles directory
-    ".zshrc".source = ../../dotfiles/zshrc;
-    
     # Example of other dotfiles you might want to manage:
     # ".gitconfig".source = ../../dotfiles/gitconfig;
     # ".vimrc".source = ../../dotfiles/vimrc;
   };
 
-  # You can also add other Home Manager configurations here:
+  # Git Configuration Example
   # programs.git = {
   #   enable = true;
   #   userName = "Your Name";
   #   userEmail = "your.email@example.com";
   # };
-  
+
   # programs.zsh = {
   #   enable = true;
   #   # ZSH specific configurations

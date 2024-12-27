@@ -4,7 +4,7 @@
 {
   programs.zsh = {
     enable = true;
-    enableAutosuggestions = true;
+    autosuggestion.enable = true;
     enableCompletion = true;
     syntaxHighlighting.enable = true;
 
@@ -68,8 +68,10 @@
 
   # Install powerlevel10k theme and required fonts
   home.packages = with pkgs; [
+    zsh
+    oh-my-zsh
     zsh-powerlevel10k
-    (nerdfonts.override { fonts = [ "Meslo" ]; })
+    nerd-fonts.meslo-lg
   ];
 
   # Copy p10k configuration
