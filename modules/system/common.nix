@@ -56,9 +56,11 @@
     pinentry          # For password entry
     pinentry-gtk2     # GTK-based pinentry
     zsh               # ZSH shell
+    home-manager      # User environment management
   ];
 
-  # Set ZSH as an available login shell
+  # Enable and configure ZSH
+  programs.zsh.enable = true;  # This is required when ZSH is the default shell
   environment.shells = with pkgs; [ zsh ];
   users.defaultUserShell = pkgs.zsh;
 

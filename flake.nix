@@ -40,20 +40,19 @@
           ./modules/features/secrets.nix
           # Include sops-nix module
           sops-nix.nixosModules.sops
-        ];
-      };
-    };
-
-    # Home Manager configurations for user environments
-    homeConfigurations = {
-      # Configuration for elaraUser
-      elaraUser = home-manager.lib.homeManagerConfiguration {
-        inherit nixpkgs;  # Use the same nixpkgs as above
-        modules = [
-          # Common home configuration shared across users
-          ./modules/home/common-home.nix
-          # Include sops-nix home-manager module
-          sops-nix.homeManagerModules.sops
+          # Include home-manager as a NixOS module
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            # This makes home-manager use the configuration for all users defined in the system
+            home-manager.extraSpecialArgs = {
+              inherit nixpkgs;
+            };
+            home-manager.users = {
+              "@extraUsers@" = ./modules/home/common-home.nix;
+            };
+          }
         ];
       };
     };

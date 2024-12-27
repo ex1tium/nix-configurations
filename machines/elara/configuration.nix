@@ -41,6 +41,9 @@
     home = "/home/ex1tium"; # Home directory location
   };
 
+  # Configure home-manager for this user
+  home-manager.users.ex1tium = import ../../modules/home/common-home.nix;
+
   # System-wide packages specific to this machine
   environment.systemPackages = with pkgs; [
     git                     # Version control
