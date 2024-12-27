@@ -38,6 +38,8 @@
           ./machines/elara/configuration.nix
           # Secrets management configuration
           ./modules/features/secrets.nix
+          # Include sops-nix module
+          sops-nix.nixosModules.sops
         ];
       };
     };
@@ -50,6 +52,8 @@
         modules = [
           # Common home configuration shared across users
           ./modules/home/common-home.nix
+          # Include sops-nix home-manager module
+          sops-nix.homeManagerModules.sops
         ];
       };
     };
