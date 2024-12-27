@@ -55,7 +55,12 @@
     gnupg              # Main GPG package
     pinentry          # For password entry
     pinentry-gtk2     # GTK-based pinentry
+    zsh               # ZSH shell
   ];
+
+  # Set ZSH as an available login shell
+  environment.shells = with pkgs; [ zsh ];
+  users.defaultUserShell = pkgs.zsh;
 
   # Audio Configuration
   # Disable PulseAudio in favor of PipeWire
