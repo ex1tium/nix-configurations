@@ -34,6 +34,7 @@
       "networkmanager"       # Allows network management
       "wheel"               # Enables sudo access
     ];
+    group = "users";        # Primary group
     # User-specific packages
     packages = with pkgs; [
       kdePackages.kate      # KDE text editor
@@ -41,8 +42,13 @@
     home = "/home/ex1tium"; # Home directory location
   };
 
-  # Configure home-manager for this user
-  home-manager.users.ex1tium = import ../../modules/home/common-home.nix;
+  # Configure home-manager for the user
+  home-manager.users.ex1tium = { pkgs, ... }: {
+    imports = [
+      ../../modules/home/common-home.nix
+    ];
+    home.stateVersion = "23.11";  # Please read the comment in 'home.nix' about this value
+  };
 
   # System-wide packages specific to this machine
   environment.systemPackages = with pkgs; [
@@ -72,4 +78,12 @@
 
   # Browser Configuration
   programs.firefox.enable = true; # Install and enable Firefox
+
+  # This value determines the NixOS release from which the default
+  # settings for stateful data, like file locations and database versions
+  # on your system were taken. It's perfectly fine and recommended to leave
+  # this value at the release version of the first install of this system.
+  # Before changing this value read the documentation for this option
+  # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
+  system.stateVersion = "23.11"; # Did you read the comment?
 }

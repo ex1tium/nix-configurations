@@ -49,9 +49,6 @@
             home-manager.extraSpecialArgs = {
               inherit nixpkgs;
             };
-            home-manager.users = {
-              "@extraUsers@" = ./modules/home/common-home.nix;
-            };
           }
         ];
       };
