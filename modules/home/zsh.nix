@@ -1,4 +1,3 @@
-# ZSH configuration module for home-manager
 { config, pkgs, lib, ... }:
 
 {
@@ -11,56 +10,42 @@
     # oh-my-zsh configuration
     oh-my-zsh = {
       enable = true;
-      plugins = [
-        "git"
-      ];
+      # Only enable core plugins to avoid plugin issues
+      plugins = [ "git" ];
     };
 
-    # Additional zsh plugins not included in oh-my-zsh
-    plugins = [
-      {
-        name = "zsh-autosuggestions";
-        src = pkgs.zsh-autosuggestions;
-      }
-      {
-        name = "zsh-syntax-highlighting";
-        src = pkgs.zsh-syntax-highlighting;
-      }
-      {
-        name = "fast-syntax-highlighting";
-        src = pkgs.zsh-fast-syntax-highlighting;
-      }
-      {
-        name = "zsh-autocomplete";
-        src = pkgs.zsh-autocomplete;
-      }
-      {
-        name = "powerlevel10k";
-        src = pkgs.zsh-powerlevel10k;
-        file = "share/zsh-powerlevel10k/powerlevel10k.zsh-theme";
-      }
-    ];
-
     initExtra = ''
-      # Source powerlevel10k instant prompt
+      # Source zsh-autosuggestions
+      source "${pkgs.zsh-autosuggestions}/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+
+      # Source zsh-syntax-highlighting
+      source "${pkgs.zsh-syntax-highlighting}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+
+      # Source fast-syntax-highlighting
+      source "${pkgs.zsh-fast-syntax-highlighting}/share/zsh/site-functions/fast-syntax-highlighting.plugin.zsh"
+
+      # Source zsh-autocomplete
+      source "${pkgs.zsh-autocomplete}/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh"
+
+      # Source Powerlevel10k theme
+      source "${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/powerlevel10k.zsh-theme"
+
+      # Source Powerlevel10k instant prompt
       if [[ -r "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh" ]]; then
         source "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh"
       fi
 
-      # Enable powerlevel10k theme
-      source ${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/powerlevel10k.zsh-theme
-
-      # Source p10k config
+      # Source Powerlevel10k configuration
       [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-      # Basic environment variables
+      # Environment variables
       export EDITOR="vim"
       export VISUAL="vim"
       export LANG="en_US.UTF-8"
       export LC_ALL="en_US.UTF-8"
     '';
 
-    # Common aliases that work on any system
+    # Shell aliases for convenience
     shellAliases = {
       ll = "ls -l";
       la = "ls -la";
@@ -70,17 +55,21 @@
     };
   };
 
-  # Install powerlevel10k theme and required fonts
+  # Install required packages
   home.packages = with pkgs; [
     zsh
     oh-my-zsh
     zsh-powerlevel10k
     nerd-fonts.meslo-lg
+    zsh-autosuggestions
+    zsh-syntax-highlighting
+    zsh-fast-syntax-highlighting
+    zsh-autocomplete
   ];
 
-  # Copy p10k configuration
-  home.file.".p10k.zsh".source = ../../config/p10k/.p10k.zsh;
-
-  # Additional font packages for powerlevel10k
+  # Ensure fonts are available for Powerlevel10k
   fonts.fontconfig.enable = true;
+
+  # Copy Powerlevel10k configuration
+  home.file.".p10k.zsh".source = ../../config/p10k/.p10k.zsh;
 }
