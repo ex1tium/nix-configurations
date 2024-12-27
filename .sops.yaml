@@ -1,0 +1,18 @@
+# This file configures the encryption keys used by sops-nix
+# It determines which keys can encrypt/decrypt which files
+
+creation_rules:
+  # Default rule for all files in the secrets directory
+  - path_regex: secrets/.*
+    # List of GPG keys that can encrypt/decrypt secrets
+    # Replace the fingerprint with your actual GPG key fingerprint
+    pgp: >-
+      # Get your key fingerprint with: gpg --list-secret-keys --keyid-format=long
+      # It should look like: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      REPLACE_WITH_YOUR_GPG_KEY_FINGERPRINT
+      
+    # You can add multiple keys by adding more fingerprints
+    # This allows multiple users/systems to decrypt the secrets
+    # pgp: >-
+    #   FINGERPRINT1
+    #   FINGERPRINT2

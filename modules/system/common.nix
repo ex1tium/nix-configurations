@@ -40,6 +40,23 @@
     };
   };
 
+  # GPG Configuration
+  programs.gnupg = {
+    enable = true;           # Enable GPG
+    agent = {
+      enable = true;        # Enable GPG agent
+      enableSSHSupport = true;  # Use GPG agent for SSH
+      pinentryFlavor = "gtk2";  # Use GTK pinentry for desktop systems
+    };
+  };
+
+  # Install GPG-related packages
+  environment.systemPackages = with pkgs; [
+    gnupg              # Main GPG package
+    pinentry          # For password entry
+    pinentry-gtk2     # GTK-based pinentry
+  ];
+
   # Audio Configuration
   # Disable PulseAudio in favor of PipeWire
   hardware.pulseaudio.enable = false;
