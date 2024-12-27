@@ -8,6 +8,8 @@
     ../../modules/system/desktop.nix
   ];
 
+  nix.settings.cores = 4; # Replace 2 with a lower number suitable for your VM
+
   # Machine-specific settings.
   networking.hostName = "elara";
 
