@@ -4,6 +4,20 @@
 
 { config, pkgs, ... }:
 {
+  # Import ZSH configuration
+  imports = [
+    ./zsh.nix
+  ];
+
+  # Allow unfree packages
+  nixpkgs.config.allowUnfree = true;
+
+  # Let Home Manager install and manage itself.
+  programs.home-manager.enable = true;
+
+  # Specify package versions
+  home.stateVersion = "23.11";
+
   # User-specific Package Installation
   home.packages = [
     pkgs.bat    # Modern replacement for cat
