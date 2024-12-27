@@ -2,6 +2,25 @@
 
 This repository contains multi-machine NixOS configurations using Flakes, Home Manager, devShells, and sops-nix (with GnuPG).
 
+## Repository Structure
+
+```
+.
+├── machines/           # Machine-specific configurations
+│   └── elara/         # Configuration for the 'elara' machine
+├── modules/           
+│   ├── system/        # System-wide NixOS configurations
+│   ├── home/          # Home Manager user configurations
+│   ├── devshells/     # Development shell environments
+│   ├── features/      # Reusable feature modules
+│   └── overlays/      # Nixpkgs overlays
+├── config/            # Application configurations
+│   └── p10k/         # Powerlevel10k ZSH theme config
+├── dotfiles/         # User dotfiles
+├── secrets/          # Encrypted secrets (via sops-nix)
+└── flake.nix        # Main flake configuration
+```
+
 ## Quick Start
 
 1. **Install NixOS** on your machine or VM.
@@ -16,6 +35,30 @@ This repository contains multi-machine NixOS configurations using Flakes, Home M
    git pull
    sudo nixos-rebuild switch --flake .#${MACHINE_NAME}
    ```
+
+## Configuration
+
+### System Configuration
+- Base system configuration is in `modules/system/common.nix`
+- Machine-specific configs are in `machines/${MACHINE_NAME}/configuration.nix`
+- Features can be enabled/disabled per machine
+
+### Home Manager
+
+- Common user configurations are in `modules/home/common-home.nix`
+- ZSH configuration with Powerlevel10k theme in `modules/home/zsh.nix`
+- Apply user-level configs via:
+  ```bash
+  home-manager switch --flake .#${USERNAME}
+  ```
+
+### Shell Environment
+- ZSH is configured with:
+  - Powerlevel10k theme
+  - Syntax highlighting
+  - Auto-suggestions
+  - Auto-completion
+  - Common aliases
 
 ## GPG Key Setup
 
@@ -76,23 +119,58 @@ git config --global commit.gpgsign true
 - Secrets are encrypted using GPG keys configured in `.sops.yaml`
 - Make sure to have the corresponding GPG private key when building or deploying
 
-## Home Manager
-
-- Home Manager configs are in `modules/home`
-- Apply user-level configs via:
-  ```bash
-  home-manager switch --flake .#someUser
-  ```
-
 ## DevShells
 
+- Development shell environments are defined in `modules/devshells/`
 - Enter ephemeral dev environments, e.g.:
   ```bash
   nix develop .#rust
   ```
 
-## Next Steps
+## Adding a New Machine
 
-- Move your existing `configuration.nix` and `hardware-configuration.nix` into `machines/elara/`
-- Integrate any existing logic into the shared modules (system, home, etc.)
-- Update SSH keys, PGP keys, and secrets as needed
+1. Create a new directory in `machines/`:
+   ```bash
+   mkdir -p machines/new-machine
+   ```
+
+2. Add configuration files:
+   - `configuration.nix`: Machine-specific configuration
+   - `hardware-configuration.nix`: Hardware-specific configuration
+
+3. Add the machine to `flake.nix`:
+   ```nix
+   nixosConfigurations.new-machine = nixpkgs.lib.nixosSystem {
+     system = "x86_64-linux";
+     modules = [
+       ./machines/new-machine/configuration.nix
+       home-manager.nixosModules.home-manager
+       {
+         home-manager.useGlobalPkgs = true;
+         home-manager.useUserPackages = true;
+         home-manager.users.${username} = import ./modules/home/common-home.nix;
+       }
+     ];
+   };
+   ```
+
+## Maintenance
+
+### Updating
+```bash
+# Update flake inputs
+nix flake update
+
+# Update specific input
+nix flake lock --update-input nixpkgs
+```
+
+### Garbage Collection
+```bash
+# Remove old generations
+sudo nix-collect-garbage -d
+
+# Remove specific generation
+sudo nix-env --delete-generations old
+sudo nixos-rebuild boot
+```
