@@ -18,6 +18,8 @@
     ../../modules/system/networking.nix
     # Desktop environment settings
     ../../modules/system/desktop.nix
+    # Development environment settings
+    ../../modules/system/development.nix
   ];
 
   # Nix-specific settings
@@ -52,15 +54,8 @@
 
   # System-wide packages specific to this machine
   environment.systemPackages = with pkgs; [
-    git                     # Version control
-    vim                     # Text editor
-    wget                    # File download utility
-    tree                    # Directory listing tool
-    spice-vdagent          # SPICE guest agent for VMs
-    xorg.xf86videoqxl      # QXL video driver for VMs
-    xorg.xrandr            # Screen resolution management
-    xsel                   # X selection tool
-    xclip                  # Clipboard tool
+    direnv                 # Directory environment manager
+    nil                    # Nix language server
   ];
 
   #Run unpatched dynamic binaries on NixOS. This is required for some applications like VS Code Remote.

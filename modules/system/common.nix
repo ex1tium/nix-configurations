@@ -52,11 +52,20 @@
 
   # Install GPG-related packages
   environment.systemPackages = with pkgs; [
-    gnupg              # Main GPG package
+    gnupg             # Main GPG package
     pinentry          # For password entry
     pinentry-gtk2     # GTK-based pinentry
     zsh               # ZSH shell
     home-manager      # User environment management
+    git               # Version control
+    vim               # Text editor
+    wget              # File download utility
+    tree              # Directory listing tool
+    spice-vdagent     # SPICE guest agent for VMs
+    xorg.xf86videoqxl # QXL video driver for VMs
+    xorg.xrandr       # Screen resolution management
+    xsel              # X selection tool
+    xclip             # Clipboard tool
   ];
 
   # Enable and configure ZSH

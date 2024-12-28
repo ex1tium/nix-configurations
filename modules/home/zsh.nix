@@ -11,7 +11,10 @@
     oh-my-zsh = {
       enable = true;
       # Only enable core plugins to avoid plugin issues
-      plugins = [ "git" ];
+      plugins = [ 
+        "git" 
+        "direnv"
+        ];
     };
 
     initExtra = ''
