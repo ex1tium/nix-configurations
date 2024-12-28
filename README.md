@@ -6,19 +6,38 @@ This repository contains multi-machine NixOS configurations using Flakes, Home M
 
 ```
 .
-├── machines/           # Machine-specific configurations
-│   └── elara/         # Configuration for the 'elara' machine
-├── modules/           
-│   ├── system/        # System-wide NixOS configurations
-│   ├── home/          # Home Manager user configurations
-│   ├── devshells/     # Development shell environments
-│   ├── features/      # Reusable feature modules
-│   └── overlays/      # Nixpkgs overlays
-├── config/            # Application configurations
-│   └── p10k/         # Powerlevel10k ZSH theme config
-├── dotfiles/         # User dotfiles
-├── secrets/          # Encrypted secrets (via sops-nix)
-└── flake.nix        # Main flake configuration
+├── bash-scripts          # Scripts for initializing Nix structure and other utilities
+│   └── init-nix-structure.sh
+├── config                # Configuration files for various tools
+│   └── p10k             # Powerlevel10k configuration
+├── dotfiles             # User dotfiles for various applications
+│   └── gitconfig        # Git configuration file
+├── flake.lock           # Lock file for Nix flakes
+├── flake.nix            # Main flake file for Nix configuration
+├── machines             # Machine-specific configurations
+│   └── elara           # Configuration for the 'elara' machine
+│       ├── configuration.nix         # Main configuration for Elara
+│       └── hardware-configuration.nix # Hardware-specific settings
+├── modules              # Modular configurations for various features
+│   ├── devshells        # Development shell configurations
+│   │   ├── go.nix       # Go development environment
+│   │   ├── README.md    # Documentation for development shells
+│   │   └── rust.nix     # Rust development environment
+│   ├── features         # Additional features and modules
+│   │   └── secrets.nix  # Secrets management configuration
+│   ├── home             # Home Manager user configurations
+│   │   ├── common-home.nix # Common home configurations
+│   │   └── zsh.nix      # Zsh shell configuration
+│   ├── overlays         # Custom overlays for Nix packages
+│   │   └── custom-overlay.nix
+│   └── system           # System-wide configurations
+│       ├── common.nix   # Common system settings
+│       ├── desktop.nix  # Desktop environment settings
+│       ├── development.nix # Development environment settings
+│       └── networking.nix # Networking settings
+├── secrets              # Directory for secrets management
+│   └── README.md        # Documentation for secrets management
+└── tmp                  # Temporary files and directories
 ```
 
 ## Quick Start
