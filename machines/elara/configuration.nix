@@ -63,6 +63,9 @@
     xclip                  # Clipboard tool
   ];
 
+  #Run unpatched dynamic binaries on NixOS. This is required for some applications like VS Code Remote.
+  programs.nix-ld.enable = true;
+
   # Virtual Machine Services
   # Enable QEMU guest agent for better VM integration
   services.qemuGuest.enable = true;
