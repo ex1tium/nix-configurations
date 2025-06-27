@@ -1,0 +1,292 @@
+# NixOS Configuration .gitignore
+
+# Nix build results
+result
+result-*
+.nix-build-*
+
+# Nix garbage collection roots
+.gcroots
+
+# Nix profile links
+.nix-profile
+
+# Nix channels
+.nix-channels
+
+# Nix defexpr
+.nix-defexpr
+
+# Direnv
+.direnv/
+.envrc.local
+
+# Development shells
+shell.nix.local
+
+# Temporary files
+*.tmp
+*.temp
+*~
+.#*
+\#*#
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Secrets and sensitive data
+secrets/*.yaml
+secrets/*.yml
+secrets/*.json
+!secrets/README.md
+!secrets/.sops.yaml
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+*.age
+
+# SOPS files (keep encrypted, ignore decrypted)
+secrets/**/secrets.yaml
+secrets/**/secrets.yml
+!secrets/**/*.enc.*
+
+# Hardware configurations (machine-specific)
+# Uncomment if you don't want to track hardware configs
+# machines/*/hardware-configuration.nix
+
+# Build artifacts
+htmlcov/
+coverage/
+*.coverage
+.coverage.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# Rust
+target/
+Cargo.lock
+*.rs.bk
+
+# Go
+vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Logs
+*.log
+logs/
+log/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Cache directories
+.cache/
+cache/
+
+# Temporary directories
+tmp/
+temp/
+
+# Local configuration overrides
+local.nix
+*.local.nix
+
+# Machine-specific overrides (if using this pattern)
+machines/*/local.nix
+machines/*/secrets.nix
+
+# Development databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Container volumes and data
+docker-data/
+volumes/
+data/
+
+# Kubernetes
+*.kubeconfig
+kubeconfig
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Ansible
+*.retry
+.vault_pass
+
+# SSH keys and configs
+ssh_config
+known_hosts
+authorized_keys
+
+# GPG
+*.gpg
+*.asc
+secring.*
+pubring.*
+trustdb.gpg
+random_seed
+
+# Age encryption
+*.age
+
+# Local development
+.local/
+local/
+
+# Test results
+test-results/
+test-output/
+
+# Documentation build
+_build/
+site/
+
+# IDE and editor specific
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+*.code-workspace
+
+# JetBrains
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Vim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+Session.vim
+Sessionx.vim
+.netrwhist
+*~
+tags
+[._]*.un~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Sublime Text
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
+
+# Local Nix expressions for testing
+test.nix
+debug.nix
+scratch.nix

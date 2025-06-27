@@ -63,8 +63,9 @@ pkgs.mkShell {
     export NODE_ENV=development
     export NODE_OPTIONS="--max-old-space-size=8192"
     
-    # Enable corepack for package manager management
-    corepack enable
+    # Disable corepack to avoid Nix store permission errors
+    export COREPACK_ENABLE_STRICT=0
+    # corepack enable 2>/dev/null || true  # Disabled due to Nix store read-only
     
     # Set up npm configuration for development
     npm config set fund false

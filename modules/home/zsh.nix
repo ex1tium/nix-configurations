@@ -14,7 +14,7 @@ with lib;
     historySubstringSearch.enable = true;
 
     # Modern ZSH configuration
-    defaultKeymap = "emacs"; # or "viins" for vi mode
+    defaultKeymap = "viins"; # or "viins" for vi mode
 
     # History configuration
     history = {
@@ -80,9 +80,9 @@ with lib;
       [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
       # Modern environment variables
-      export EDITOR="nvim"
-      export VISUAL="nvim"
-      export BROWSER="brave"
+      export EDITOR="nano"
+      export VISUAL="nano"
+      export BROWSER="${config.home.sessionVariables.BROWSER or "brave"}"
       export TERMINAL="ghostty"
       export LANG="en_US.UTF-8"
       export LC_ALL="en_US.UTF-8"
@@ -326,10 +326,10 @@ with lib;
     RIPGREP_CONFIG_PATH = "$HOME/.config/ripgrep/config";
 
     # Development
-    EDITOR = "nvim";
-    VISUAL = "nvim";
-    BROWSER = "brave";
-    TERMINAL = "ghostty";
+    EDITOR = mkDefault "nano";
+    VISUAL = mkDefault "nano";
+    BROWSER = mkDefault "brave";
+    TERMINAL = mkDefault "ghostty";
 
     # Language-specific
     GOPATH = "$HOME/go";

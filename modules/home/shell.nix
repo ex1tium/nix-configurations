@@ -14,9 +14,9 @@ with lib;
     enable = mkEnableOption "shell configuration" // { default = true; };
     
     defaultShell = mkOption {
-      type = types.enum [ "zsh" "bash" "fish" ];
+      type = types.enum [ "zsh" "bash" ];
       default = "zsh";
-      description = "Default shell to configure";
+      description = "Default shell to configure (ZSH or Bash only)";
     };
     
     theme = mkOption {
@@ -45,54 +45,150 @@ with lib;
         historyFileSize = 50000;
         
         shellAliases = {
-          # Modern CLI tool replacements
+          # Modern CLI tool replacements (identical to ZSH)
           ls = "eza";
           ll = "eza -l";
           la = "eza -la";
+          tree = "eza --tree";
           cat = "bat";
           grep = "rg";
           find = "fd";
-          
-          # Git aliases
+
+          # Navigation shortcuts (identical to ZSH)
+          ".." = "cd ..";
+          "..." = "cd ../..";
+          "...." = "cd ../../..";
+          "....." = "cd ../../../..";
+
+          # Git aliases (identical to ZSH)
           g = "git";
           gs = "git status";
           ga = "git add";
           gc = "git commit";
           gp = "git push";
           gl = "git pull";
-          
-          # System aliases
+          gd = "git diff";
+          gco = "git checkout";
+          gb = "git branch";
+          glog = "git log --oneline --graph --decorate";
+
+          # Development aliases (identical to ZSH)
+          dc = "docker-compose";
+          k = "kubectl";
+          tf = "terraform";
+
+          # System aliases (identical to ZSH)
           df = "duf";
           du = "dust";
           ps = "procs";
-          
-          # Navigation
-          ".." = "cd ..";
-          "..." = "cd ../..";
+          top = "btop";
+
+          # Network aliases (identical to ZSH)
+          ping = "ping -c 5";
+          wget = "wget -c";
+
+          # Safety aliases (identical to ZSH)
+          rm = "rm -i";
+          cp = "cp -i";
+          mv = "mv -i";
+
+          # Convenience aliases (identical to ZSH)
+          h = "history";
+          j = "jobs";
+          c = "clear";
+          e = "$EDITOR";
+
+          # Directory shortcuts (identical to ZSH)
+          home = "cd ~";
+          docs = "cd ~/Documents";
+          downloads = "cd ~/Downloads";
+          desktop = "cd ~/Desktop";
+
+          # Development shortcuts (identical to ZSH)
+          dev = "cd ~/Development";
+          projects = "cd ~/Projects";
+
+          # Quick edits (identical to ZSH)
+          zshrc = "$EDITOR ~/.zshrc";
+          vimrc = "$EDITOR ~/.vimrc";
+
+          # System information (identical to ZSH)
+          myip = "curl -s https://ipinfo.io/ip";
+          localip = "ip route get 1.1.1.1 | awk '{print $7}'";
+
+          # Package management (identical to ZSH)
+          nrs = "sudo nixos-rebuild switch";
+          nrb = "sudo nixos-rebuild boot";
+          nrt = "sudo nixos-rebuild test";
+          nfu = "nix flake update";
+          nfc = "nix flake check";
+
+          # Home Manager (identical to ZSH)
+          hms = "home-manager switch";
+          hmb = "home-manager build";
         };
         
         bashrcExtra = ''
-          # Modern bash configuration
-          export EDITOR="nvim"
-          export VISUAL="nvim"
+          # Modern bash configuration (identical to ZSH)
+          export EDITOR="nano"
+          export VISUAL="nano"
           export BROWSER="brave"
           export TERMINAL="ghostty"
-          
-          # Modern tools
+
+          # Modern tools (identical to ZSH)
           export BAT_THEME="TwoDark"
           export FZF_DEFAULT_COMMAND="fd --type f --hidden --follow --exclude .git"
-          
-          # Development
+
+          # Development (identical to ZSH)
           export GOPATH="$HOME/go"
           export GOBIN="$GOPATH/bin"
-          
+
+          # Functions (identical to ZSH)
+          function mkcd() {
+            mkdir -p "$1" && cd "$1"
+          }
+
+          function extract() {
+            if [ -f "$1" ]; then
+              case "$1" in
+                *.tar.bz2)   tar xjf "$1"     ;;
+                *.tar.gz)    tar xzf "$1"     ;;
+                *.bz2)       bunzip2 "$1"    ;;
+                *.rar)       unrar x "$1"    ;;
+                *.gz)        gunzip "$1"     ;;
+                *.tar)       tar xf "$1"     ;;
+                *.tbz2)      tar xjf "$1"    ;;
+                *.tgz)       tar xzf "$1"    ;;
+                *.zip)       unzip "$1"      ;;
+                *.Z)         uncompress "$1" ;;
+                *.7z)        7z x "$1"       ;;
+                *)           echo "'$1' cannot be extracted via extract()" ;;
+              esac
+            else
+              echo "'$1' is not a valid file"
+            fi
+          }
+
+          function gclone() {
+            git clone "$1" && cd "$(basename "$1" .git)"
+          }
+
+          function serve() {
+            local port=''${1:-8000}
+            python3 -m http.server $port
+          }
+
+          function weather() {
+            curl -s "wttr.in/''${1:-Helsinki}?format=3"
+          }
+
           # Bash-specific settings
           shopt -s histappend
           shopt -s checkwinsize
           shopt -s cdspell
           shopt -s dirspell
           shopt -s globstar
-          
+
           # Load additional completions
           if [ -f /etc/bash_completion ]; then
             . /etc/bash_completion
@@ -100,54 +196,11 @@ with lib;
         '';
       };
 
-      # Fish configuration (alternative)
-      fish = mkIf (config.myHome.shell.defaultShell == "fish") {
-        enable = true;
-        
-        shellAliases = {
-          # Modern CLI tool replacements
-          ls = "eza";
-          ll = "eza -l";
-          la = "eza -la";
-          cat = "bat";
-          grep = "rg";
-          find = "fd";
-          
-          # Git aliases
-          g = "git";
-          gs = "git status";
-          ga = "git add";
-          gc = "git commit";
-          gp = "git push";
-          gl = "git pull";
-        };
-        
-        interactiveShellInit = ''
-          # Modern fish configuration
-          set -gx EDITOR nvim
-          set -gx VISUAL nvim
-          set -gx BROWSER brave
-          set -gx TERMINAL ghostty
-          
-          # Modern tools
-          set -gx BAT_THEME TwoDark
-          set -gx FZF_DEFAULT_COMMAND "fd --type f --hidden --follow --exclude .git"
-          
-          # Development
-          set -gx GOPATH $HOME/go
-          set -gx GOBIN $GOPATH/bin
-          
-          # Fish-specific settings
-          set fish_greeting ""
-        '';
-      };
-
-      # Starship prompt (alternative to Powerlevel10k)
+      # Starship prompt (experimental alternative to Powerlevel10k)
       starship = mkIf (config.myHome.shell.theme == "starship") {
         enable = true;
         enableZshIntegration = config.myHome.shell.defaultShell == "zsh";
         enableBashIntegration = config.myHome.shell.defaultShell == "bash";
-        enableFishIntegration = config.myHome.shell.defaultShell == "fish";
         
         settings = {
           format = "$all$character";
@@ -203,7 +256,6 @@ with lib;
         enable = true;
         enableZshIntegration = config.myHome.shell.defaultShell == "zsh";
         enableBashIntegration = config.myHome.shell.defaultShell == "bash";
-        enableFishIntegration = config.myHome.shell.defaultShell == "fish";
       };
 
       # Modern fuzzy finder
@@ -211,7 +263,6 @@ with lib;
         enable = true;
         enableZshIntegration = config.myHome.shell.defaultShell == "zsh";
         enableBashIntegration = config.myHome.shell.defaultShell == "bash";
-        enableFishIntegration = config.myHome.shell.defaultShell == "fish";
         
         defaultCommand = "fd --type f --hidden --follow --exclude .git";
         defaultOptions = [
@@ -233,7 +284,6 @@ with lib;
         enable = true;
         enableZshIntegration = config.myHome.shell.defaultShell == "zsh";
         enableBashIntegration = config.myHome.shell.defaultShell == "bash";
-        enableFishIntegration = config.myHome.shell.defaultShell == "fish";
         
         extraOptions = [
           "--group-directories-first"
@@ -257,7 +307,6 @@ with lib;
         enable = true;
         enableZshIntegration = config.myHome.shell.defaultShell == "zsh";
         enableBashIntegration = config.myHome.shell.defaultShell == "bash";
-        enableFishIntegration = config.myHome.shell.defaultShell == "fish";
         nix-direnv.enable = true;
       };
     };
@@ -309,8 +358,8 @@ with lib;
     # Shell environment variables
     home.sessionVariables = {
       # Editor preferences
-      EDITOR = "nvim";
-      VISUAL = "nvim";
+      EDITOR = "nano";
+      VISUAL = "nano";
       BROWSER = "brave";
       TERMINAL = "ghostty";
       

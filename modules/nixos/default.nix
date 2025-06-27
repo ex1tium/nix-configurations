@@ -1,99 +1,194 @@
 # Modern NixOS Module System
 # This file provides the main module interface with proper options and types
 
-{ config, lib, pkgs, globalConfig ? {}, profileConfig ? {}, finalFeatures ? {}, ... }:
+{ config, lib, globalConfig ? {}, finalFeatures ? {}, ... }:
 
 with lib;
 
 {
-  # For now, just import the core modules that exist
+  # Import core foundation modules only
   imports = [
-    # Only import modules that exist
+    ./core.nix
+    ./users.nix
+    ./networking.nix
+    ./security.nix
   ];
 
   # Modern option definitions with proper types
   options.mySystem = {
     enable = mkEnableOption "custom system configuration";
-    
+
     hostname = mkOption {
       type = types.str;
       default = globalConfig.defaultUser or "nixos";
       description = "System hostname";
+      example = "my-machine";
     };
 
     user = mkOption {
       type = types.str;
       default = globalConfig.defaultUser or "user";
       description = "Primary user account";
+      example = "john";
     };
 
     timezone = mkOption {
       type = types.str;
       default = globalConfig.defaultTimezone or "UTC";
       description = "System timezone";
+      example = "Europe/Helsinki";
     };
 
     locale = mkOption {
       type = types.str;
       default = globalConfig.defaultLocale or "en_US.UTF-8";
       description = "System locale";
+      example = "en_US.UTF-8";
     };
 
     stateVersion = mkOption {
       type = types.str;
       default = globalConfig.defaultStateVersion or "24.11";
       description = "NixOS state version";
+      example = "24.11";
     };
 
     features = mkOption {
-      type = types.attrs;
-      default = finalFeatures;
+      type = types.submodule {
+        options = {
+          desktop = mkOption {
+            type = types.submodule {
+              options = {
+                enable = mkEnableOption "desktop environment";
+                environment = mkOption {
+                  type = types.enum [ "plasma" "gnome" "xfce" "i3" ];
+                  default = "plasma";
+                  description = "Desktop environment to use";
+                };
+                displayManager = mkOption {
+                  type = types.enum [ "sddm" "gdm" "lightdm" ];
+                  default = "sddm";
+                  description = "Display manager to use";
+                };
+                enableWayland = mkEnableOption "Wayland support";
+                enableX11 = mkEnableOption "X11 support";
+                enableRemoteDesktop = mkEnableOption "remote desktop access";
+              };
+            };
+            default = {};
+            description = "Desktop environment configuration";
+          };
+
+          development = mkOption {
+            type = types.submodule {
+              options = {
+                enable = mkEnableOption "development tools";
+                languages = mkOption {
+                  type = types.listOf (types.enum [ "nodejs" "go" "python" "rust" "nix" "java" "cpp" ]);
+                  default = [ "nix" ];
+                  description = "Programming languages to support";
+                };
+                editors = mkOption {
+                  type = types.listOf (types.enum [ "vscode" "neovim" "vim" "emacs" ]);
+                  default = [ "vim" ];
+                  description = "Text editors to install";
+                };
+                enableContainers = mkEnableOption "container development tools";
+                enableVirtualization = mkEnableOption "virtualization for development";
+                enableDatabases = mkEnableOption "database development tools";
+              };
+            };
+            default = {};
+            description = "Development environment configuration";
+          };
+
+          virtualization = mkOption {
+            type = types.submodule {
+              options = {
+                enable = mkEnableOption "virtualization support";
+                enableDocker = mkEnableOption "Docker container runtime";
+                enablePodman = mkEnableOption "Podman container runtime";
+                enableLibvirt = mkEnableOption "libvirt/KVM virtualization";
+                enableVirtualbox = mkEnableOption "VirtualBox virtualization";
+                enableWaydroid = mkEnableOption "Waydroid Android emulation";
+              };
+            };
+            default = {};
+            description = "Virtualization and container configuration";
+          };
+
+          server = mkOption {
+            type = types.submodule {
+              options = {
+                enable = mkEnableOption "server-specific features";
+                enableMonitoring = mkEnableOption "system monitoring tools";
+                enableBackup = mkEnableOption "backup solutions";
+                enableWebServer = mkEnableOption "web server capabilities";
+              };
+            };
+            default = {};
+            description = "Server-specific configuration";
+          };
+        };
+      };
+      default = if finalFeatures != {} then finalFeatures else {};
       description = "System features configuration";
     };
 
     hardware = mkOption {
-      type = types.attrs;
+      type = types.submodule {
+        options = {
+          kernel = mkOption {
+            type = types.enum [ "stable" "latest" "lts" ];
+            default = "stable";
+            description = "Kernel version to use";
+          };
+          enableVirtualization = mkEnableOption "hardware virtualization support";
+          enableRemoteDesktop = mkEnableOption "remote desktop hardware acceleration";
+          gpu = mkOption {
+            type = types.enum [ "intel" "amd" "nvidia" "none" ];
+            default = "none";
+            description = "GPU type for driver optimization";
+          };
+        };
+      };
       default = {};
       description = "Hardware-specific configuration";
     };
   };
 
-  # Basic configuration implementation
+  # Configuration implementation
   config = mkIf config.mySystem.enable {
-    # Set basic system properties
-    networking.hostName = config.mySystem.hostname;
-    time.timeZone = config.mySystem.timezone;
-    i18n.defaultLocale = config.mySystem.locale;
-    system.stateVersion = config.mySystem.stateVersion;
+    # The actual configuration is handled by the imported modules
+    # This ensures proper module composition and avoids conflicts
 
-    # Basic user configuration
-    users.users.${config.mySystem.user} = {
-      isNormalUser = true;
-      description = config.mySystem.user;
-      extraGroups = [ "wheel" "users" ];
-      home = "/home/${config.mySystem.user}";
-    };
-
-    # Basic system packages
-    environment.systemPackages = with pkgs; [
-      vim
-      git
-      curl
-      wget
+    # Assertions to validate configuration
+    assertions = [
+      {
+        assertion = config.mySystem.user != "";
+        message = "mySystem.user must be set to a non-empty string";
+      }
+      {
+        assertion = config.mySystem.hostname != "";
+        message = "mySystem.hostname must be set to a non-empty string";
+      }
+      {
+        assertion = !(config.mySystem.features.virtualization.enableVirtualbox && config.mySystem.features.virtualization.enableLibvirt);
+        message = "VirtualBox and libvirt/KVM cannot be enabled simultaneously due to conflicts";
+      }
+      {
+        assertion = config.mySystem.features.desktop.enable -> (config.mySystem.features.desktop.environment != "");
+        message = "Desktop environment must be specified when desktop features are enabled";
+      }
     ];
 
-    # Basic Nix configuration
-    nix = {
-      settings = {
-        experimental-features = [ "nix-command" "flakes" ];
-        auto-optimise-store = true;
-      };
-    };
-
-    # Basic boot configuration
-    boot.loader = {
-      systemd-boot.enable = true;
-      efi.canTouchEfiVariables = true;
-    };
+    # Warnings for common configuration issues
+    warnings = []
+      ++ optional (config.mySystem.features.development.enable && !config.mySystem.features.virtualization.enableDocker && !config.mySystem.features.virtualization.enablePodman)
+         "Development features are enabled but no container runtime is configured"
+      ++ optional (config.mySystem.features.desktop.enable && !config.mySystem.features.desktop.enableWayland && !config.mySystem.features.desktop.enableX11)
+         "Desktop is enabled but neither Wayland nor X11 is enabled"
+      ++ optional (config.mySystem.hardware.kernel == "latest" && !config.mySystem.features.development.enable)
+         "Latest kernel is selected but development features are disabled - consider using 'stable' kernel for better stability";
   };
 }

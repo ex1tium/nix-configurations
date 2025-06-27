@@ -1,36 +1,41 @@
-# Modern NixOS Configuration Flake - Working Version
-# Simplified structure to ensure it builds correctly
+# Modern NixOS Configuration Flake - Version 25.05
+# Centralized version management system
 
 {
-  description = "Modern NixOS configuration system with machine profiles";
+  description = "Modern NixOS configuration system with machine profiles - Version 25.05";
 
+  # Centralized Version Management
+  # Change these URLs to update NixOS version across entire configuration
   inputs = {
-    # Use stable nixpkgs to avoid compatibility issues
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    # NixOS 25.05 (unstable) - as per user preference
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
+    # Stable fallback for compatibility
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-24.11";
 
     home-manager = {
-      url = "github:nix-community/home-manager/release-24.11";
+      url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    
+
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    
+
     flake-utils.url = "github:numtide/flake-utils";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
   };
 
   outputs = { self, nixpkgs, home-manager, sops-nix, flake-utils, ... }:
   let
-    # Global configuration
+    # Global configuration with centralized version management
     globalConfig = {
       defaultUser = "ex1tium";
       defaultTimezone = "Europe/Helsinki";
       defaultLocale = "en_US.UTF-8";
-      defaultStateVersion = "24.11";
+      defaultStateVersion = "25.05";  # NixOS 25.05 (unstable)
+      nixosVersion = "25.05";
     };
 
     # Machine configurations
@@ -40,113 +45,32 @@
         profile = "developer";
         hostname = "elara";
         users = [ globalConfig.defaultUser ];
-        features = {
-          desktop = { enable = true; environment = "plasma"; };
-          development = { enable = true; };
-          virtualization = { enable = true; };
-          server = { enable = false; };
-        };
+        # Features are now configured in the profile modules
+        # Machine-specific overrides can be added in machine configuration
       };
     };
 
     # Helper function to create system configurations
-    mkSystem = { hostname, system ? "x86_64-linux", features ? {} }:
+    mkSystem = { hostname, system ? "x86_64-linux" }:
       let
         machineConfig = machines.${hostname};
+        profileModule = ./modules/profiles/${machineConfig.profile}.nix;
       in
       nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = {
           inherit self nixpkgs home-manager sops-nix;
           inherit globalConfig machineConfig;
-          finalFeatures = features;
         };
         modules = [
           # Hardware configuration
           ./machines/${hostname}/hardware-configuration.nix
-          
-          # Basic system configuration
-          {
-            # Basic system settings
-            networking.hostName = hostname;
-            time.timeZone = globalConfig.defaultTimezone;
-            i18n.defaultLocale = globalConfig.defaultLocale;
-            system.stateVersion = globalConfig.defaultStateVersion;
 
-            # Basic Nix configuration
-            nix = {
-              settings = {
-                experimental-features = [ "nix-command" "flakes" ];
-                auto-optimise-store = true;
-                trusted-users = [ "root" "@wheel" ];
-              };
-              package = nixpkgs.legacyPackages.${system}.nixVersions.latest;
-            };
+          # Machine-specific configuration
+          ./machines/${hostname}/configuration.nix
 
-            # Basic boot configuration
-            boot.loader = {
-              systemd-boot.enable = true;
-              efi.canTouchEfiVariables = true;
-            };
-
-            # User configuration
-            users.users.${globalConfig.defaultUser} = {
-              isNormalUser = true;
-              description = globalConfig.defaultUser;
-              extraGroups = [ "wheel" "networkmanager" ];
-              home = "/home/${globalConfig.defaultUser}";
-            };
-
-            # Basic packages
-            environment.systemPackages = with nixpkgs.legacyPackages.${system}; [
-              vim
-              git
-              curl
-              wget
-              firefox
-              
-              # Modern CLI tools
-              nano
-              bat
-              eza
-              fd
-              ripgrep
-              fzf
-              zoxide
-              htop
-              btop
-            ];
-
-            # Enable NetworkManager
-            networking.networkmanager.enable = true;
-
-            # Enable sound
-            security.rtkit.enable = true;
-            services.pipewire = {
-              enable = true;
-              alsa.enable = true;
-              alsa.support32Bit = true;
-              pulse.enable = true;
-            };
-
-            # Desktop environment (if enabled)
-            services.displayManager.sddm.enable = features.desktop.enable or false;
-            services.desktopManager.plasma6.enable = features.desktop.enable or false;
-            services.xserver = {
-              enable = features.desktop.enable or false;
-              xkb = {
-                layout = "us";
-                variant = "";
-              };
-            };
-
-            # Development tools (if enabled)
-            programs.nix-ld.enable = features.development.enable or false;
-            
-            # Virtualization (if enabled)
-            virtualisation.docker.enable = features.virtualization.enable or false;
-            virtualisation.libvirtd.enable = features.virtualization.enable or false;
-          }
+          # Profile configuration (base, desktop, developer, or server)
+          profileModule
 
           # Home Manager integration
           home-manager.nixosModules.home-manager
@@ -154,50 +78,12 @@
             home-manager = {
               useGlobalPkgs = true;
               useUserPackages = true;
-              users.${globalConfig.defaultUser} = { pkgs, ... }: {
-                home = {
-                  stateVersion = globalConfig.defaultStateVersion;
-                  username = globalConfig.defaultUser;
-                  homeDirectory = "/home/${globalConfig.defaultUser}";
-
-                  packages = with pkgs; [
-                    bat
-                    eza
-                    fd
-                    ripgrep
-                    fzf
-                    zoxide
-                  ];
-                };
-
-                programs.zsh = {
-                  enable = true;
-                  autosuggestion.enable = true;
-                  syntaxHighlighting.enable = true;
-                  enableCompletion = true;
-
-                  shellAliases = {
-                    ls = "eza";
-                    ll = "eza -l";
-                    la = "eza -la";
-                    cat = "bat";
-                    grep = "rg";
-                    find = "fd";
-                  };
-                };
-              };
+              users.${globalConfig.defaultUser} = import ./modules/home/default.nix;
             };
           }
 
           # Secrets management
           sops-nix.nixosModules.sops
-          {
-            sops = {
-              defaultSopsFile = ./secrets/secrets.yaml;
-              validateSopsFiles = false;
-              age.keyFile = "/home/${globalConfig.defaultUser}/.config/sops/age/keys.txt";
-            };
-          }
         ];
       };
   in
@@ -206,7 +92,7 @@
     nixosConfigurations = nixpkgs.lib.mapAttrs (name: machineConfig:
       mkSystem {
         hostname = name;
-        inherit (machineConfig) system features;
+        inherit (machineConfig) system;
       }
     ) machines;
 

@@ -1,35 +1,35 @@
 # Modern Configuration for 'elara' machine
 # Developer workstation with full capabilities
-# Migrated to use modern machine profile system
+# Uses the developer profile with machine-specific customizations
 
-{ config, lib, pkgs, globalConfig, profileConfig, finalFeatures, ... }:
+{ lib, pkgs, ... }:
 
 with lib;
 
 {
-  # Import hardware and profile configurations
-  imports = [
-    # Hardware-specific configuration (automatically generated)
-    ./hardware-configuration.nix
-
-    # Modern profile system handles the rest
-    # Profile is specified in flake.nix machines configuration
-  ];
-
-  # Modern system configuration using profile system
+  # Machine-specific overrides for the developer profile
   mySystem = {
-    enable = true;
-
-    # Machine-specific settings (override profile defaults)
+    # Machine-specific settings
     hostname = "elara";
-    user = globalConfig.defaultUser;
 
-    # Use developer profile features with machine-specific overrides
-    features = finalFeatures // {
-      # Machine-specific feature overrides
-      virtualization.enable = true;
-      development.enable = true;
-      desktop.enable = true;
+    # Machine-specific feature overrides (if needed)
+    features = {
+      # The developer profile already enables these, but we can override if needed
+      desktop = {
+        enableRemoteDesktop = true; # Enable for VM access
+      };
+
+      development = {
+        # Add any machine-specific development languages/tools
+        languages = [ "nodejs" "go" "python" "rust" "nix" "java" ];
+      };
+
+      virtualization = {
+        # Enable all virtualization for development
+        enableDocker = true;
+        enablePodman = true;
+        enableLibvirt = true;
+      };
     };
 
     # Machine-specific hardware settings
@@ -37,6 +37,7 @@ with lib;
       kernel = "latest"; # Use latest kernel for development
       enableVirtualization = true;
       enableRemoteDesktop = true;
+      gpu = "intel"; # Set based on actual hardware
     };
   };
 
@@ -48,23 +49,10 @@ with lib;
 
   # Machine-specific packages (beyond profile defaults)
   environment.systemPackages = with pkgs; [
-    # Development tools specific to this machine
-    direnv                 # Directory environment manager
-    nixd                   # Modern Nix language server
-
     # VM-specific tools
     spice-vdagent         # SPICE guest agent
-    qemu-guest-agent      # QEMU guest agent
+    qemu_kvm              # QEMU guest agent
   ];
-
-  # Enable programs for development
-  programs = {
-    # Run unpatched dynamic binaries (needed for VS Code Remote, etc.)
-    nix-ld.enable = true;
-
-    # Enable Firefox browser
-    firefox.enable = true;
-  };
 
   # Virtual Machine Services (elara is a VM)
   services = {
@@ -77,30 +65,13 @@ with lib;
     # Remote Desktop Configuration
     xrdp = {
       enable = true;
-      # Use KDE Plasma with X11 as the default session
       defaultWindowManager = "startplasma-x11";
       openFirewall = true;
     };
   };
 
-  # Machine-specific user configuration
-  users.users.${globalConfig.defaultUser} = {
-    # Additional packages specific to this machine
-    packages = with pkgs; [
-      kdePackages.kate      # KDE text editor
-
-      # Development tools for this specific machine
-      jetbrains.idea-ultimate
-
-      # VM-specific applications
-      virt-manager
-    ];
-  };
-
   # Machine-specific networking
   networking = {
-    hostName = "elara";
-
     # Open additional ports for development
     firewall.allowedTCPPorts = [
       3389  # RDP

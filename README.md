@@ -1,195 +1,163 @@
-# nix-configurations
+# Modern NixOS Configuration System
 
-This repository contains multi-machine NixOS configurations using Flakes, Home Manager, devShells, and sops-nix (with GnuPG).
+A modular, layered NixOS configuration system designed for easy maintenance and reusability across multiple machines and use cases.
 
-## Repository Structure
+## 🏗️ Architecture
+
+This configuration follows a **layered architecture** with unidirectional dependencies:
 
 ```
-.
-├── bash-scripts          # Scripts for initializing Nix structure and other utilities
-│   └── init-nix-structure.sh
-├── config                # Configuration files for various tools
-│   └── p10k             # Powerlevel10k configuration
-├── dotfiles             # User dotfiles for various applications
-│   └── gitconfig        # Git configuration file
-├── flake.lock           # Lock file for Nix flakes
-├── flake.nix            # Main flake file for Nix configuration
-├── machines             # Machine-specific configurations
-│   └── elara           # Configuration for the 'elara' machine
-│       ├── configuration.nix         # Main configuration for Elara
-│       └── hardware-configuration.nix # Hardware-specific settings
-├── modules              # Modular configurations for various features
-│   ├── devshells        # Development shell configurations
-│   │   ├── go.nix       # Go development environment
-│   │   ├── README.md    # Documentation for development shells
-│   │   └── rust.nix     # Rust development environment
-│   ├── features         # Additional features and modules
-│   │   └── secrets.nix  # Secrets management configuration
-│   ├── home             # Home Manager user configurations
-│   │   ├── common-home.nix # Common home configurations
-│   │   └── zsh.nix      # Zsh shell configuration
-│   ├── overlays         # Custom overlays for Nix packages
-│   │   └── custom-overlay.nix
-│   └── system           # System-wide configurations
-│       ├── common.nix   # Common system settings
-│       ├── desktop.nix  # Desktop environment settings
-│       ├── development.nix # Development environment settings
-│       └── networking.nix # Networking settings
-├── secrets              # Directory for secrets management
-│   └── README.md        # Documentation for secrets management
-└── tmp                  # Temporary files and directories
+Machine → Profile → Features → Core
 ```
 
-## Quick Start
+- **Core**: Foundation services (networking, users, security)
+- **Features**: Composable functionality (desktop, development, virtualization)
+- **Profiles**: Role-based combinations (desktop, developer, server)
+- **Machines**: Hardware-specific overrides and customizations
 
-1. **Install NixOS** on your machine or VM.
-2. **Generate hardware config** (e.g., `nixos-generate-config --root /mnt`).
-3. **Copy** or **merge** `hardware-configuration.nix` into `machines/${MACHINE_NAME}/`.
-4. **Install** via:
+## 🚀 Quick Start
+
+### Prerequisites
+- NixOS 25.05 or compatible system
+- Flakes enabled: `nix.settings.experimental-features = ["nix-command" "flakes"]`
+
+### Deploy to New Machine
+
+1. **Clone the repository**:
    ```bash
-   nixos-install --flake /mnt/etc/nixos#${MACHINE_NAME}
-   ```
-5. **Pull changes** and rebuild:
-   ```bash
-   git pull
-   sudo nixos-rebuild switch --flake .#${MACHINE_NAME}
-   ```
-
-## Configuration
-
-### System Configuration
-- Base system configuration is in `modules/system/common.nix`
-- Machine-specific configs are in `machines/${MACHINE_NAME}/configuration.nix`
-- Features can be enabled/disabled per machine
-
-### Home Manager
-
-- Common user configurations are in `modules/home/common-home.nix`
-- ZSH configuration with Powerlevel10k theme in `modules/home/zsh.nix`
-- Apply user-level configs via:
-  ```bash
-  home-manager switch --flake .#${USERNAME}
-  ```
-
-### Shell Environment
-- ZSH is configured with:
-  - Powerlevel10k theme
-  - Syntax highlighting
-  - Auto-suggestions
-  - Auto-completion
-  - Common aliases
-
-## GPG Key Setup
-
-### Initial Setup (Per Machine)
-1. **Prepare GPG directory**:
-   ```bash
-   # Create fresh GPG directory
-   mkdir -m 700 ~/.gnupg
-   
-   # Configure GPG
-   cat > ~/.gnupg/gpg.conf << EOF
-   use-agent
-   pinentry-mode loopback
-   EOF
-   
-   cat > ~/.gnupg/gpg-agent.conf << EOF
-   allow-loopback-pinentry
-   enable-ssh-support
-   EOF
-   
-   chmod 600 ~/.gnupg/gpg.conf ~/.gnupg/gpg-agent.conf
+   git clone https://github.com/ex1tium/nix-configurations.git
+   cd nix-configurations
    ```
 
-2. **Import keys**:
+2. **Generate hardware configuration**:
    ```bash
-   # Import public key first
-   gpg --import path/to/public-key.asc
-   
-   # Import private key
-   gpg --allow-secret-key-import --import path/to/private-key.asc
-   
-   # Set trust level
-   gpg --edit-key your.email@example.com
-   > trust
-   > 5
-   > y
-   > quit
+   sudo nixos-generate-config --root /mnt
+   mkdir -p machines/my-machine
+   cp /mnt/etc/nixos/hardware-configuration.nix machines/my-machine/
    ```
 
-3. **Verify setup**:
+3. **Create machine configuration**:
    ```bash
-   # Test signing
-   echo "test" | gpg --clearsign
-   
-   # Check key details
-   gpg -K --with-keygrip
+   cp machines/elara/configuration.nix machines/my-machine/
+   # Edit machines/my-machine/configuration.nix for your needs
    ```
 
-### Git Signing Configuration
-```bash
-git config --global user.signingkey your.email@example.com
-git config --global commit.gpgsign true
-```
-
-## Secrets
-
-- All secrets are stored in `/secrets` as encrypted files using sops-nix
-- Secrets are encrypted using GPG keys configured in `.sops.yaml`
-- Make sure to have the corresponding GPG private key when building or deploying
-
-## DevShells
-
-- Development shell environments are defined in `modules/devshells/`
-- Enter ephemeral dev environments, e.g.:
-  ```bash
-  nix develop .#rust
-  ```
-
-## Adding a New Machine
-
-1. Create a new directory in `machines/`:
-   ```bash
-   mkdir -p machines/new-machine
-   ```
-
-2. Add configuration files:
-   - `configuration.nix`: Machine-specific configuration
-   - `hardware-configuration.nix`: Hardware-specific configuration
-
-3. Add the machine to `flake.nix`:
+4. **Add machine to flake**:
    ```nix
-   nixosConfigurations.new-machine = nixpkgs.lib.nixosSystem {
+   # In flake.nix, add to machines = { ... }:
+   my-machine = {
      system = "x86_64-linux";
-     modules = [
-       ./machines/new-machine/configuration.nix
-       home-manager.nixosModules.home-manager
-       {
-         home-manager.useGlobalPkgs = true;
-         home-manager.useUserPackages = true;
-         home-manager.users.${username} = import ./modules/home/common-home.nix;
-       }
-     ];
+     profile = "developer";  # or "desktop", "server"
+     hostname = "my-machine";
+     users = [ globalConfig.defaultUser ];
    };
    ```
 
-## Maintenance
+5. **Build and deploy**:
+   ```bash
+   sudo nixos-rebuild switch --flake .#my-machine
+   ```
 
-### Updating
+## 📋 Available Profiles
+
+### Desktop Profile
+- **Target**: Basic desktop workstations, thin clients
+- **Features**: KDE Plasma 6, essential applications
+- **Use Case**: General productivity, media consumption
+
+### Developer Profile
+- **Target**: Development workstations, daily drivers
+- **Features**: Desktop + development tools + virtualization
+- **Languages**: Node.js, Go, Python, Rust, Nix
+- **Tools**: VS Code, containers (Docker/Podman), KVM
+
+### Server Profile
+- **Target**: Headless servers, container hosts
+- **Features**: Monitoring, containers, security hardening
+- **Use Case**: Production servers, self-hosted services
+
+## 🔧 Customization
+
+### Adding a New Machine
+
+1. Create machine directory: `machines/{hostname}/`
+2. Add hardware configuration and machine-specific settings
+3. Choose appropriate profile and override as needed
+4. Register in `flake.nix`
+
+### Enabling Features
+
+Features are controlled through the `mySystem.features` option:
+
+```nix
+mySystem.features = {
+  desktop.enable = true;
+  development = {
+    enable = true;
+    languages = [ "nodejs" "python" "rust" ];
+    editors = [ "vscode" "neovim" ];
+  };
+  virtualization = {
+    enable = true;
+    enableDocker = true;
+    enableLibvirt = true;
+  };
+};
+```
+
+### Container-First Philosophy
+
+- **Databases**: Run PostgreSQL, MySQL, Redis in containers
+- **Services**: Use Docker Compose for development services
+- **Virtualization**: LXC/LXD preferred over VirtualBox
+
+## 🛠️ Development
+
+### Available Dev Shells
+
+```bash
+nix develop .#nodejs    # Node.js development
+nix develop .#go        # Go development
+nix develop .#python    # Python development
+nix develop .#rust      # Rust development
+```
+
+### Useful Commands
+
 ```bash
 # Update flake inputs
-nix flake update
+nix run .#update
 
-# Update specific input
-nix flake lock --update-input nixpkgs
-```
+# Check configuration
+nix run .#check
 
-### Garbage Collection
-```bash
-# Remove old generations
+# Format code
+nix fmt
+
+# Clean up
 sudo nix-collect-garbage -d
-
-# Remove specific generation
-sudo nix-env --delete-generations old
-sudo nixos-rebuild boot
 ```
+
+## 📚 Documentation
+
+- [Architecture Details](docs/ARCHITECTURE.md) - Detailed design principles
+- [Troubleshooting](TROUBLESHOOTING.md) - Common issues and solutions
+
+## 🔒 Security
+
+- Secrets managed with [SOPS](https://github.com/Mic92/sops-nix)
+- Security hardening in server profile
+- Fail2ban and firewall configuration
+- Regular security updates
+
+## 🤝 Contributing
+
+1. Follow the layered architecture principles
+2. Use `mkDefault` for overrideable options
+3. Keep features self-contained and composable
+4. Test changes with `nix flake check`
+5. Update documentation for new features
+
+## 📄 License
+
+This configuration is provided as-is for educational and personal use.
