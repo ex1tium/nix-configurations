@@ -7,11 +7,14 @@
 with lib;
 
 let
-  # Safe evaluation wrapper for file system access
+  # Safe evaluation wrapper for file system access. This is more robust than the
+  # previous implementation because it correctly checks the `success` flag from
+  # `tryEval`, preventing errors on empty or unreadable files.
   safeReadFile = path: default:
-    if builtins.pathExists path
-    then (builtins.tryEval (builtins.readFile path)).value or default
-    else default;
+    let
+      result = builtins.tryEval (builtins.readFile path);
+    in
+    if result.success then result.value else default;
 
   # Enhanced CPU vendor detection with robust fallback
   cpuVendor =
@@ -148,7 +151,7 @@ in
 
     debug = mkOption {
       type = types.bool;
-      default = false;
+      default = true;
       description = "Enable debug output for hardware detection.";
     };
   };
