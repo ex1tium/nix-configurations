@@ -649,18 +649,46 @@ setup_btrfs() {
   # Wait for filesystem to be recognized
   sleep 2
 
+  # Mount and create subvolumes
   dry_run_cmd sudo mount "$dev" /mnt
-  for sv in @root @home @nix @snapshots; do dry_run_cmd sudo btrfs subvolume create /mnt/$sv; done
+
+  # Create subvolumes with explicit error checking
+  for sv in @root @home @nix @snapshots; do
+    log_info "Creating BTRFS subvolume: $sv"
+    dry_run_cmd sudo btrfs subvolume create "/mnt/$sv"
+
+    # Verify subvolume was created
+    if ! is_dry_run && ! sudo btrfs subvolume show "/mnt/$sv" &>/dev/null; then
+      log_error "Failed to create BTRFS subvolume: $sv"
+      exit 1
+    fi
+  done
+
+  # Sync and unmount
+  dry_run_cmd sudo sync
   dry_run_cmd sudo umount /mnt
 
-  # Wait before remounting
-  sleep 1
+  # Wait for unmount to complete
+  sleep 2
 
+  # Remount with subvolumes
+  log_info "Mounting BTRFS subvolumes..."
   dry_run_cmd sudo mount -o subvol=@root,compress=zstd "$dev" /mnt
   dry_run_cmd sudo mkdir -p /mnt/{home,nix,.snapshots,boot}
   dry_run_cmd sudo mount -o subvol=@home,compress=zstd "$dev" /mnt/home
   dry_run_cmd sudo mount -o subvol=@nix,compress=zstd  "$dev" /mnt/nix
   dry_run_cmd sudo mount -o subvol=@snapshots,compress=zstd "$dev" /mnt/.snapshots
+
+  # Verify all mounts are successful
+  if ! is_dry_run; then
+    for mount_point in /mnt /mnt/home /mnt/nix /mnt/.snapshots; do
+      if ! mountpoint -q "$mount_point"; then
+        log_error "Failed to mount BTRFS subvolume at $mount_point"
+        exit 1
+      fi
+    done
+    log_info "All BTRFS subvolumes mounted successfully"
+  fi
 }
 
 setup_filesystem() {
