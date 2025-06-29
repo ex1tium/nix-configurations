@@ -30,6 +30,7 @@ let
       dmiProduct = safeReadFile "/sys/class/dmi/id/product_name" "";
       dmiVendor = safeReadFile "/sys/class/dmi/id/sys_vendor" "";
       cpuinfo = safeReadFile "/proc/cpuinfo" "";
+      pciDevices = safeReadFile "/proc/bus/pci/devices" "";
 
       vmIndicators = [
         "QEMU"
@@ -49,7 +50,10 @@ let
 
       hasHypervisorFlag = (builtins.match ".*hypervisor.*" cpuinfo) != null;
 
-    in hasVmIndicator || hasHypervisorFlag;
+      # Check for virtio devices (vendor ID 1af4), a strong indicator of a VM.
+      hasVirtioDevice = (builtins.match ".*1af4.*" pciDevices) != null;
+
+    in hasVmIndicator || hasHypervisorFlag || hasVirtioDevice;
 
   # Enhanced GPU detection with better VM/passthrough awareness
   gpuVendor =
@@ -80,16 +84,16 @@ let
       hasIntelModule = (builtins.match ".*i915.*" lsmodOutput) != null || (builtins.match ".*xe.*" lsmodOutput) != null;
 
     in
-    # Priority-based detection for multi-GPU or passthrough scenarios
-    if hasNvidiaGpu || hasNvidiaModule then "nvidia"
+    # Priority-based detection for multi-GPU or passthrough scenarios.
+    # First, check for common virtual machine GPUs. If found, we are in a VM without passthrough.
+    if hasQemuGpu || hasVirtioGpu then "none"
+    # Then, check for physical GPUs (could be passthrough).
+    else if hasNvidiaGpu || hasNvidiaModule then "nvidia"
     else if hasAmdGpu || hasAmdModule then "amd"
     else if hasIntelGpu || hasIntelModule then "intel"
-    # Handle virtual GPUs specifically. If a physical GPU is passed through,
-    # it should be detected above. This handles VMs without passthrough.
-    else if isVirtualized && (hasQemuGpu || hasVirtioGpu) then "none"
-    # Fallback for VMs where no specific GPU is detected
+    # Fallback for VMs where no specific GPU is detected but virtualization is known.
     else if isVirtualized then "none"
-    # Fallback for physical systems, assuming Intel iGPU if nothing else is found
+    # Fallback for physical systems, assuming Intel iGPU if nothing else is found.
     else "intel";
 
   # Generate appropriate KVM modules based on detected CPU
