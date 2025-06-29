@@ -61,16 +61,14 @@ in
     services.blueman.enable = mkDefault true;
 
     # Graphics
+    # Note: GPU-specific packages (intel-media-driver, vaapiIntel, amdvlk, etc.) are handled by the GPU module
     hardware.graphics = {
       enable = true;
       enable32Bit = mkDefault true;
       extraPackages = with pkgs; [
-        intel-media-driver
-        vaapiIntel
-        vaapiVdpau
+        # Common packages for all GPU vendors
         libvdpau-va-gl
         mesa
-        amdvlk
       ];
     };
 

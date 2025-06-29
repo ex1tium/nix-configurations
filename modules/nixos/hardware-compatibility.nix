@@ -100,8 +100,17 @@ in
     );
 
     # VM-specific kernel parameters
-    boot.kernelParams = mkIf (config.mySystem.hardware.compatibility.autoVmOptimizations && isVirtualized) 
-      vmKernelParams;
+    boot.kernelParams = mkIf (config.mySystem.hardware.compatibility.autoVmOptimizations && isVirtualized) (
+      let
+        finalCpuVendor = config.mySystem.hardware.compatibility.cpuVendorOverride or cpuVendor;
+        # CPU-vendor specific IOMMU parameters
+        iommuParams = 
+          if finalCpuVendor == "intel" then [ "intel_iommu=on" ]
+          else if finalCpuVendor == "amd" then [ "amd_iommu=on" ]
+          else [];
+      in
+      vmKernelParams ++ iommuParams
+    );
 
     # Additional VM optimizations
     # Note: VM-specific sysctl optimizations (vm.swappiness, vm.vfs_cache_pressure) 

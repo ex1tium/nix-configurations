@@ -175,9 +175,8 @@ with lib;
     };
 
     # Kernel modules for virtualization
+    # Note: KVM modules (kvm-intel/kvm-amd) are handled by hardware compatibility module
     boot.kernelModules = [
-      "kvm-intel"     # Intel KVM support
-      "kvm-amd"       # AMD KVM support
       "vfio-pci"      # VFIO for GPU passthrough
       "vhost-net"     # Network acceleration
       "br_netfilter"  # Bridge netfilter for containers
@@ -185,10 +184,8 @@ with lib;
     ];
 
     # Kernel parameters for virtualization
+    # Note: IOMMU parameters (intel_iommu=on/amd_iommu=on) are handled by hardware compatibility module
     boot.kernelParams = [
-      # Enable IOMMU for GPU passthrough
-      "intel_iommu=on"
-      "amd_iommu=on"
       
       # Hugepages for better VM performance
       "transparent_hugepage=madvise"

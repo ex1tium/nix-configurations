@@ -10,6 +10,14 @@ let
   isWaylandEnabled = desktopCfg.enableWayland;
   isX11Enabled = desktopCfg.enableX11;
   desktopEnvironment = desktopCfg.environment;
+  gpuType = config.mySystem.hardware.gpu;
+  
+  # GPU-vendor specific X11 video drivers
+  x11VideoDrivers = with pkgs.xorg;
+    [ xf86inputlibinput ] ++  # Always include libinput
+    (optionals (gpuType == "intel") [ xf86videointel ]) ++
+    (optionals (gpuType == "amd") [ xf86videoati ]) ++
+    (optionals (gpuType == "nvidia") [ xf86videonouveau ]);
 in
 {
   config = mkIf desktopCfg.enable {
@@ -49,13 +57,8 @@ in
         Option "AccelMethod" "glamor"
       '';
       
-      # X11 modules
-      modules = with pkgs.xorg; [
-        xf86inputlibinput
-        xf86videoati
-        xf86videointel
-        xf86videonouveau
-      ];
+      # X11 modules - GPU-vendor specific drivers
+      modules = x11VideoDrivers;
     };
 
     # XWayland support (for running X11 apps on Wayland)
