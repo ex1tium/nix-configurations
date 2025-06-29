@@ -118,7 +118,7 @@ in
     enable = mkEnableOption "production-ready hardware compatibility detection and configuration";
 
     cpu.vendor = mkOption {
-      type = types.enum [ "intel" "amd" "unknown" ] ++ [ pkgs.stdenv.hostPlatform.parsed.cpu.name ];
+      type = types.enum ([ "intel" "amd" "unknown" ] ++ [ pkgs.stdenv.hostPlatform.parsed.cpu.name ]);
       default = cpuVendor;
       description = "Detected CPU vendor for hardware-specific optimizations.";
     };
@@ -164,7 +164,7 @@ in
     };
 
     # Debug output
-    warnings = mkIf config.mySystem.hardware.debug [
+    warnings = optionals config.mySystem.hardware.debug [
       "Hardware Detection Debug: CPU Vendor = ${config.mySystem.hardware.cpu.vendor}"
       "Hardware Detection Debug: GPU Setting = ${config.mySystem.hardware.gpu}"
       "Hardware Detection Debug: Detected GPU = ${config.mySystem.hardware.detectedGpu}"
