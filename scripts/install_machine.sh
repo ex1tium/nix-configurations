@@ -980,6 +980,111 @@ final_validation() {
 ###############################################################################
 # 12.  Post-installation validation
 ###############################################################################
+
+patch_hardware_config_uuids() {
+  local hw_config="$1"
+  local root_uuid="$2"
+  local esp_uuid="$3"
+
+  log_info "Patching hardware configuration UUIDs..."
+
+  # Create backup
+  local backup_file="${hw_config}.backup.$(date +%Y%m%d_%H%M%S)"
+  sudo cp "$hw_config" "$backup_file"
+  log_info "Created backup: $backup_file"
+
+  # Validate UUIDs exist in /dev/disk/by-uuid/ (only if provided)
+  if [[ -n $root_uuid ]]; then
+    if [[ ! -e "/dev/disk/by-uuid/$root_uuid" ]]; then
+      log_error "Root UUID $root_uuid not found in /dev/disk/by-uuid/"
+      return 1
+    fi
+    log_info "Root UUID $root_uuid validated"
+  fi
+
+  if [[ -n $esp_uuid ]]; then
+    if [[ ! -e "/dev/disk/by-uuid/$esp_uuid" ]]; then
+      log_error "ESP UUID $esp_uuid not found in /dev/disk/by-uuid/"
+      return 1
+    fi
+    log_info "ESP UUID $esp_uuid validated"
+  fi
+
+  # Skip patching if no UUIDs provided
+  if [[ -z $root_uuid ]] && [[ -z $esp_uuid ]]; then
+    log_warn "No UUIDs provided for patching"
+    return 0
+  fi
+
+  # Create temporary file for patching
+  local temp_file
+  temp_file=$(mktemp)
+
+  # Read the hardware config and patch UUIDs
+  local changes_made=false
+  local in_root_fs=false
+  local in_boot_fs=false
+
+  while IFS= read -r line; do
+    local new_line="$line"
+
+    # Track which filesystem section we're in
+    if [[ $line =~ fileSystems\.\"/\"[[:space:]]*= ]]; then
+      in_root_fs=true
+      in_boot_fs=false
+    elif [[ $line =~ fileSystems\.\"/boot\"[[:space:]]*= ]]; then
+      in_boot_fs=true
+      in_root_fs=false
+    elif [[ $line =~ fileSystems\. ]]; then
+      in_root_fs=false
+      in_boot_fs=false
+    fi
+
+    # Patch root filesystem UUID
+    if [[ -n $root_uuid ]] && [[ $in_root_fs == true ]] && [[ $line =~ device[[:space:]]*=[[:space:]]*\"/dev/disk/by-uuid/([a-fA-F0-9-]+)\" ]]; then
+      local old_uuid="${BASH_REMATCH[1]}"
+      if [[ $old_uuid != "$root_uuid" ]]; then
+        new_line="${line/$old_uuid/$root_uuid}"
+        log_info "Patched root filesystem UUID: $old_uuid → $root_uuid"
+        changes_made=true
+      fi
+    fi
+
+    # Patch ESP UUID
+    if [[ -n $esp_uuid ]] && [[ $in_boot_fs == true ]] && [[ $line =~ device[[:space:]]*=[[:space:]]*\"/dev/disk/by-uuid/([a-fA-F0-9-]+)\" ]]; then
+      local old_uuid="${BASH_REMATCH[1]}"
+      if [[ $old_uuid != "$esp_uuid" ]]; then
+        new_line="${line/$old_uuid/$esp_uuid}"
+        log_info "Patched ESP UUID: $old_uuid → $esp_uuid"
+        changes_made=true
+      fi
+    fi
+
+    echo "$new_line" >> "$temp_file"
+  done < "$hw_config"
+
+  # Apply changes if any were made
+  if [[ $changes_made == true ]]; then
+    sudo mv "$temp_file" "$hw_config"
+    log_success "Hardware configuration UUIDs patched successfully"
+
+    # Validate the patched config
+    if ! sudo nix-instantiate --parse "$hw_config" >/dev/null 2>&1; then
+      log_error "Patched hardware config has syntax errors - restoring backup"
+      sudo mv "$backup_file" "$hw_config"
+      rm -f "$temp_file"
+      return 1
+    fi
+
+    log_success "Patched hardware configuration validated successfully"
+  else
+    rm -f "$temp_file"
+    log_info "No UUID changes needed"
+  fi
+
+  return 0
+}
+
 validate_and_fix_hardware_config() {
   log_info "Validating and fixing hardware configuration..."
 
@@ -1011,25 +1116,35 @@ validate_and_fix_hardware_config() {
   log_info "Detected devices - Root: $root_device, ESP: $esp_device"
   log_info "Detected UUIDs - Root: $root_uuid, ESP: $esp_uuid"
 
-  # Verify UUIDs exist in hardware config
+  # Check for UUID mismatches and patch if needed
+  local needs_patching=false
+  local missing_uuids=()
+
   if [[ -n $root_uuid ]] && ! grep -q "$root_uuid" "$hw_config"; then
     log_warn "Root filesystem UUID $root_uuid not found in hardware config"
-    log_info "This may cause boot failures - attempting minimal fix..."
+    missing_uuids+=("root")
+    needs_patching=true
+  fi
 
-    # Try minimal patching instead of full regeneration to preserve template overlays
-    # Create a backup first
-    sudo cp "$hw_config" "${hw_config}.backup"
+  if [[ -n $esp_uuid ]] && ! grep -q "$esp_uuid" "$hw_config"; then
+    log_warn "ESP UUID $esp_uuid not found in hardware config"
+    missing_uuids+=("ESP")
+    needs_patching=true
+  fi
 
-    # Try to patch the UUID in existing config
-    if grep -q "device.*=.*\"/dev/disk/by-uuid/" "$hw_config"; then
-      log_info "Attempting to patch existing UUID references..."
-      # This is a minimal approach - in production, consider more sophisticated patching
-      log_warn "Hardware config UUID mismatch detected but minimal patching not implemented"
-      log_warn "Manual verification of hardware-configuration.nix may be required"
+  if [[ $needs_patching == true ]]; then
+    log_info "Missing UUIDs detected: ${missing_uuids[*]}"
+    log_info "This may cause boot failures - patching hardware configuration..."
+
+    if patch_hardware_config_uuids "$hw_config" "$root_uuid" "$esp_uuid"; then
+      log_success "Hardware configuration UUIDs patched successfully"
     else
-      log_warn "Hardware config format not recognized for patching"
+      log_error "Failed to patch hardware configuration UUIDs"
       log_warn "Manual verification of hardware-configuration.nix may be required"
+      return 1
     fi
+  else
+    log_success "Hardware configuration UUIDs are correct"
   fi
 
   # For BTRFS, ensure subvolume options are correct
@@ -1204,6 +1319,132 @@ verify_bootloader_installation() {
   return 0
 }
 
+verify_boot_entries() {
+  log_info "Verifying boot entries and kernel files..."
+
+  # Check for systemd-boot entries
+  local loader_entries_dir="/mnt/boot/loader/entries"
+  if [[ -d $loader_entries_dir ]]; then
+    local entry_files
+    mapfile -t entry_files < <(find "$loader_entries_dir" -name "*.conf" 2>/dev/null)
+
+    if [[ ${#entry_files[@]} -eq 0 ]]; then
+      log_error "No boot entry files found in $loader_entries_dir"
+      return 1
+    fi
+
+    log_info "Found ${#entry_files[@]} boot entry file(s)"
+
+    # Validate each boot entry
+    for entry_file in "${entry_files[@]}"; do
+      log_info "Validating boot entry: $(basename "$entry_file")"
+
+      # Extract kernel and initrd paths from the entry
+      local linux_path initrd_path
+      linux_path=$(grep "^linux " "$entry_file" | awk '{print $2}' | head -1)
+      initrd_path=$(grep "^initrd " "$entry_file" | awk '{print $2}' | head -1)
+
+      # Check if kernel file exists
+      if [[ -n $linux_path ]]; then
+        local full_kernel_path="/mnt/boot$linux_path"
+        if [[ -f $full_kernel_path ]]; then
+          log_info "  ✅ Kernel found: $linux_path"
+        else
+          log_error "  ❌ Kernel missing: $full_kernel_path"
+          return 1
+        fi
+      else
+        log_error "  ❌ No kernel specified in boot entry"
+        return 1
+      fi
+
+      # Check if initrd file exists
+      if [[ -n $initrd_path ]]; then
+        local full_initrd_path="/mnt/boot$initrd_path"
+        if [[ -f $full_initrd_path ]]; then
+          log_info "  ✅ Initrd found: $initrd_path"
+        else
+          log_error "  ❌ Initrd missing: $full_initrd_path"
+          return 1
+        fi
+      else
+        log_warn "  ⚠️  No initrd specified in boot entry"
+      fi
+
+      # Validate boot entry syntax
+      if ! grep -q "^title " "$entry_file"; then
+        log_warn "  ⚠️  Boot entry missing title"
+      fi
+
+      # Check for required options for BTRFS
+      if [[ $SELECTED_FILESYSTEM == "btrfs" ]]; then
+        if ! grep -q "rootflags=subvol=root" "$entry_file"; then
+          log_warn "  ⚠️  Boot entry may be missing BTRFS subvolume options"
+        fi
+      fi
+    done
+  else
+    log_warn "No systemd-boot entries directory found"
+  fi
+
+  # Verify EFI boot variables (if available)
+  if command -v efibootmgr >/dev/null 2>&1; then
+    log_info "Checking EFI boot variables..."
+    if efibootmgr | grep -i nixos >/dev/null; then
+      log_info "  ✅ NixOS EFI boot entry found"
+    else
+      log_warn "  ⚠️  No NixOS EFI boot entry found"
+    fi
+  fi
+
+  log_info "Boot entries validation completed"
+  return 0
+}
+
+verify_luks_setup() {
+  log_info "Verifying LUKS encryption setup..."
+
+  # Check if LUKS device is properly set up
+  if [[ -n ${LUKS_DEVICE:-} ]]; then
+    # Verify LUKS header
+    if cryptsetup isLuks "$ROOT_PARTITION"; then
+      log_info "  ✅ LUKS header found on $ROOT_PARTITION"
+    else
+      log_error "  ❌ LUKS header not found on $ROOT_PARTITION"
+      return 1
+    fi
+
+    # Check if LUKS device is currently open
+    if [[ -e "/dev/mapper/$LUKS_DEVICE" ]]; then
+      log_info "  ✅ LUKS device is open: /dev/mapper/$LUKS_DEVICE"
+    else
+      log_error "  ❌ LUKS device not open: /dev/mapper/$LUKS_DEVICE"
+      return 1
+    fi
+
+    # Verify hardware configuration includes LUKS setup
+    local hw_config="/mnt/etc/nixos/hardware-configuration.nix"
+    if grep -q "boot.initrd.luks.devices" "$hw_config"; then
+      log_info "  ✅ LUKS configuration found in hardware config"
+    else
+      log_warn "  ⚠️  LUKS configuration may be missing from hardware config"
+    fi
+
+    # Check for required kernel modules in initrd
+    if grep -q "boot.initrd.availableKernelModules.*dm-crypt" "$hw_config" ||
+       grep -q "boot.initrd.kernelModules.*dm-crypt" "$hw_config"; then
+      log_info "  ✅ dm-crypt module configured for initrd"
+    else
+      log_warn "  ⚠️  dm-crypt module may not be available in initrd"
+    fi
+  else
+    log_warn "LUKS device name not set, skipping LUKS validation"
+  fi
+
+  log_info "LUKS validation completed"
+  return 0
+}
+
 validate_installation() {
   log_info "Performing post-installation validation..."
 
@@ -1229,6 +1470,16 @@ validate_installation() {
   log_info "Checking bootloader installation..."
   verify_bootloader_installation
 
+  # 3.5. Verify boot entries and kernel files
+  log_info "Validating boot entries and kernel files..."
+  verify_boot_entries
+
+  # 3.6. Verify LUKS encryption if enabled
+  if [[ $ENABLE_LUKS == true ]]; then
+    log_info "Validating LUKS encryption setup..."
+    verify_luks_setup
+  fi
+
   # 4. Verify filesystem UUIDs match between fstab and actual devices
   log_info "Verifying filesystem UUID consistency..."
   local hw_config="/mnt/etc/nixos/hardware-configuration.nix"
@@ -1247,13 +1498,72 @@ validate_installation() {
     return 1
   fi
 
-  # 5. Test that the configuration can be evaluated
+  # 5. Verify filesystem integrity
+  log_info "Checking filesystem integrity..."
+  verify_filesystem_integrity
+
+  # 6. Test that the configuration can be evaluated
   log_info "Testing configuration evaluation..."
   if ! sudo chroot /mnt /run/current-system/sw/bin/nixos-rebuild dry-build --fast &>/dev/null; then
     log_warn "Configuration evaluation test failed - there may be configuration issues"
   fi
 
   log_info "Post-installation validation completed successfully"
+  return 0
+}
+
+verify_filesystem_integrity() {
+  log_info "Verifying filesystem integrity..."
+
+  # Check root filesystem
+  local root_device
+  root_device=$(findmnt -n -o SOURCE /mnt | sed 's/\[.*\]//')
+
+  if [[ $SELECTED_FILESYSTEM == "btrfs" ]]; then
+    log_info "Running BTRFS filesystem check..."
+    if btrfs filesystem show "$root_device" >/dev/null 2>&1; then
+      log_info "  ✅ BTRFS filesystem structure is valid"
+    else
+      log_error "  ❌ BTRFS filesystem structure check failed"
+      return 1
+    fi
+
+    # Check BTRFS subvolumes
+    log_info "Verifying BTRFS subvolumes..."
+    local expected_subvols=("root" "home" "nix" "snapshots")
+    for subvol in "${expected_subvols[@]}"; do
+      if btrfs subvolume show "/mnt/.snapshots/../$subvol" >/dev/null 2>&1; then
+        log_info "  ✅ Subvolume '$subvol' exists and is accessible"
+      else
+        log_error "  ❌ Subvolume '$subvol' is missing or inaccessible"
+        return 1
+      fi
+    done
+  elif [[ $SELECTED_FILESYSTEM == "ext4" ]]; then
+    log_info "Running ext4 filesystem check..."
+    # Use read-only check to avoid any modifications
+    if tune2fs -l "$root_device" >/dev/null 2>&1; then
+      log_info "  ✅ ext4 filesystem structure is valid"
+    else
+      log_error "  ❌ ext4 filesystem structure check failed"
+      return 1
+    fi
+  fi
+
+  # Check ESP filesystem
+  local esp_device
+  esp_device=$(findmnt -n -o SOURCE /mnt/boot)
+  if [[ -n $esp_device ]]; then
+    log_info "Checking ESP filesystem..."
+    # Skip fsck.fat as it can be unreliable and may modify the filesystem
+    if [[ -f /mnt/boot/EFI/systemd/systemd-bootx64.efi ]] || [[ -f /mnt/boot/EFI/BOOT/BOOTX64.EFI ]]; then
+      log_info "  ✅ ESP contains bootloader files"
+    else
+      log_warn "  ⚠️  ESP may be missing bootloader files"
+    fi
+  fi
+
+  log_info "Filesystem integrity check completed"
   return 0
 }
 
