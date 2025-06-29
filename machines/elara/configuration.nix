@@ -107,10 +107,10 @@
 
     sddm = {
       enable = true;
-      wayland.enable = true; # allow Wayland greeter
+      wayland.enable = false; # allow Wayland greeter
       settings = {
         General = {
-          DisplayServer = "wayland";
+          DisplayServer = "x11";
           GreeterEnvironment = "LIBGL_ALWAYS_SOFTWARE=1,QT_QUICK_BACKEND=software";
         };
       };
