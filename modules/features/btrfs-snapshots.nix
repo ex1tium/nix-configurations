@@ -12,110 +12,8 @@ let
 in
 
 {
-  options.mySystem.features.btrfsSnapshots = {
-    enable = mkEnableOption "BTRFS snapshots with Snapper";
-
-    autoSnapshots = mkOption {
-      type = types.bool;
-      default = true;
-      description = "Enable automatic timeline snapshots";
-    };
-
-    rootConfig = {
-      enable = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Enable snapshots for root filesystem (@root subvolume)";
-      };
-
-      timelineCreate = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Create automatic timeline snapshots for root";
-      };
-
-      timelineCleanup = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Enable automatic cleanup of old root snapshots";
-      };
-
-      retentionPolicy = mkOption {
-        type = types.attrs;
-        default = {
-          TIMELINE_MIN_AGE = "1800";      # 30 minutes
-          TIMELINE_LIMIT_HOURLY = "10";   # Keep 10 hourly snapshots
-          TIMELINE_LIMIT_DAILY = "10";    # Keep 10 daily snapshots
-          TIMELINE_LIMIT_WEEKLY = "0";    # No weekly snapshots
-          TIMELINE_LIMIT_MONTHLY = "0";   # No monthly snapshots
-          TIMELINE_LIMIT_YEARLY = "0";    # No yearly snapshots
-        };
-        description = "Retention policy for root snapshots";
-      };
-    };
-
-    homeConfig = {
-      enable = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Enable snapshots for home filesystem (@home subvolume)";
-      };
-
-      timelineCreate = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Create automatic timeline snapshots for home";
-      };
-
-      timelineCleanup = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Enable automatic cleanup of old home snapshots";
-      };
-
-      retentionPolicy = mkOption {
-        type = types.attrs;
-        default = {
-          TIMELINE_MIN_AGE = "1800";      # 30 minutes
-          TIMELINE_LIMIT_HOURLY = "24";   # Keep 24 hourly snapshots (1 day)
-          TIMELINE_LIMIT_DAILY = "7";     # Keep 7 daily snapshots (1 week)
-          TIMELINE_LIMIT_WEEKLY = "4";    # Keep 4 weekly snapshots (1 month)
-          TIMELINE_LIMIT_MONTHLY = "3";   # Keep 3 monthly snapshots
-          TIMELINE_LIMIT_YEARLY = "0";    # No yearly snapshots
-        };
-        description = "Retention policy for home snapshots";
-      };
-    };
-
-    excludePatterns = mkOption {
-      type = types.listOf types.str;
-      default = [
-        # Temporary files and caches
-        "/tmp/*"
-        "/var/tmp/*"
-        "/var/cache/*"
-        "/var/log/*"
-        
-        # User caches and temporary data
-        "/home/*/.cache/*"
-        "/home/*/.local/share/Trash/*"
-        "/home/*/.thumbnails/*"
-        "/home/*/Downloads/*"
-        
-        # Development artifacts
-        "/home/*/node_modules/*"
-        "/home/*/.npm/*"
-        "/home/*/.cargo/registry/*"
-        "/home/*/.rustup/*"
-        
-        # Browser caches
-        "/home/*/.mozilla/firefox/*/Cache/*"
-        "/home/*/.config/google-chrome/*/Cache/*"
-        "/home/*/.config/BraveSoftware/*/Cache/*"
-      ];
-      description = "Patterns to exclude from snapshots";
-    };
-  };
+  # This module implements BTRFS snapshots functionality
+  # Options are declared in modules/nixos/default.nix
 
   config = mkIf cfg.enable {
     # Ensure BTRFS tools are available
@@ -127,57 +25,43 @@ in
 
     # Configure Snapper service
     services.snapper = {
-      enable = true;
-      
       # Snapper configurations for each subvolume
       configs = mkMerge [
         # Root filesystem snapshots (@root subvolume)
         (mkIf cfg.rootConfig.enable {
           root = {
-            SUBVOLUME = "/";
-            ALLOW_USERS = [ primaryUser ];
-            ALLOW_GROUPS = [ "wheel" ];
-            
-            # Timeline snapshots
-            TIMELINE_CREATE = cfg.rootConfig.timelineCreate;
-            TIMELINE_CLEANUP = cfg.rootConfig.timelineCleanup;
-            
-            # Retention policy
-            inherit (cfg.rootConfig.retentionPolicy)
-              TIMELINE_MIN_AGE
-              TIMELINE_LIMIT_HOURLY
-              TIMELINE_LIMIT_DAILY
-              TIMELINE_LIMIT_WEEKLY
-              TIMELINE_LIMIT_MONTHLY
-              TIMELINE_LIMIT_YEARLY;
-            
-            # Exclude patterns
-            EXCLUDE_PATTERNS = concatStringsSep " " cfg.excludePatterns;
+            subvolume = "/";
+            extraConfig = ''
+              ALLOW_USERS="${primaryUser}"
+              ALLOW_GROUPS="wheel"
+              TIMELINE_CREATE="${if cfg.rootConfig.timelineCreate then "yes" else "no"}"
+              TIMELINE_CLEANUP="${if cfg.rootConfig.timelineCleanup then "yes" else "no"}"
+              TIMELINE_MIN_AGE="${cfg.rootConfig.retentionPolicy.TIMELINE_MIN_AGE}"
+              TIMELINE_LIMIT_HOURLY="${cfg.rootConfig.retentionPolicy.TIMELINE_LIMIT_HOURLY}"
+              TIMELINE_LIMIT_DAILY="${cfg.rootConfig.retentionPolicy.TIMELINE_LIMIT_DAILY}"
+              TIMELINE_LIMIT_WEEKLY="${cfg.rootConfig.retentionPolicy.TIMELINE_LIMIT_WEEKLY}"
+              TIMELINE_LIMIT_MONTHLY="${cfg.rootConfig.retentionPolicy.TIMELINE_LIMIT_MONTHLY}"
+              TIMELINE_LIMIT_YEARLY="${cfg.rootConfig.retentionPolicy.TIMELINE_LIMIT_YEARLY}"
+            '';
           };
         })
         
         # Home filesystem snapshots (@home subvolume)
         (mkIf cfg.homeConfig.enable {
           home = {
-            SUBVOLUME = "/home";
-            ALLOW_USERS = [ primaryUser ];
-            ALLOW_GROUPS = [ "wheel" ];
-            
-            # Timeline snapshots
-            TIMELINE_CREATE = cfg.homeConfig.timelineCreate;
-            TIMELINE_CLEANUP = cfg.homeConfig.timelineCleanup;
-            
-            # Retention policy
-            inherit (cfg.homeConfig.retentionPolicy)
-              TIMELINE_MIN_AGE
-              TIMELINE_LIMIT_HOURLY
-              TIMELINE_LIMIT_DAILY
-              TIMELINE_LIMIT_WEEKLY
-              TIMELINE_LIMIT_MONTHLY
-              TIMELINE_LIMIT_YEARLY;
-            
-            # Exclude patterns (focused on user data)
-            EXCLUDE_PATTERNS = concatStringsSep " " (filter (p: hasInfix "/home/" p) cfg.excludePatterns);
+            subvolume = "/home";
+            extraConfig = ''
+              ALLOW_USERS="${primaryUser}"
+              ALLOW_GROUPS="wheel"
+              TIMELINE_CREATE="${if cfg.homeConfig.timelineCreate then "yes" else "no"}"
+              TIMELINE_CLEANUP="${if cfg.homeConfig.timelineCleanup then "yes" else "no"}"
+              TIMELINE_MIN_AGE="${cfg.homeConfig.retentionPolicy.TIMELINE_MIN_AGE}"
+              TIMELINE_LIMIT_HOURLY="${cfg.homeConfig.retentionPolicy.TIMELINE_LIMIT_HOURLY}"
+              TIMELINE_LIMIT_DAILY="${cfg.homeConfig.retentionPolicy.TIMELINE_LIMIT_DAILY}"
+              TIMELINE_LIMIT_WEEKLY="${cfg.homeConfig.retentionPolicy.TIMELINE_LIMIT_WEEKLY}"
+              TIMELINE_LIMIT_MONTHLY="${cfg.homeConfig.retentionPolicy.TIMELINE_LIMIT_MONTHLY}"
+              TIMELINE_LIMIT_YEARLY="${cfg.homeConfig.retentionPolicy.TIMELINE_LIMIT_YEARLY}"
+            '';
           };
         })
       ];
@@ -237,8 +121,6 @@ in
     warnings = []
       ++ optional (!config.boot.supportedFilesystems.btrfs or false)
          "BTRFS snapshots enabled but BTRFS is not in boot.supportedFilesystems. Add 'btrfs' to supported filesystems."
-      ++ optional (cfg.enable && !config.services.snapper.enable)
-         "BTRFS snapshots feature enabled but Snapper service is disabled. This is unusual."
       ++ optional (cfg.autoSnapshots && cfg.rootConfig.enable && !cfg.rootConfig.timelineCreate)
          "Automatic snapshots enabled but timeline creation is disabled for root. Consider enabling TIMELINE_CREATE."
       ++ optional (cfg.autoSnapshots && cfg.homeConfig.enable && !cfg.homeConfig.timelineCreate)

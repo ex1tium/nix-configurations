@@ -122,9 +122,10 @@ validate_system
 ###############################################################################
 # Dependency bootstrap – re‑exec inside nix‑shell if tools missing
 ###############################################################################
-NEEDED=(git parted util-linux gptfdisk cryptsetup rsync tar jq bc pv)
+NEEDED=(git parted util-linux gptfdisk cryptsetup rsync tar jq bc)
 MISSING=()
-for p in "${NEEDED[@]}"; do
+for p in "${NEEDED[@]}"
+do
   case "$p" in
     util-linux) bin="lsblk" ;;
     gptfdisk)   bin="sgdisk" ;;
@@ -133,7 +134,7 @@ for p in "${NEEDED[@]}"; do
   command -v "$bin" &>/dev/null || MISSING+=("$p")
 done
 if (( ${#MISSING[@]} )); then
-  echo "🔧  Entering nix-shell for: ${MISSING[*]}"
+  echo "INFO: Entering nix-shell for: ${MISSING[*]}"
   tmp_script=$(mktemp)
   cat "$0" > "$tmp_script"; chmod +x "$tmp_script"
   CLEAN_ARGS=("$@")
@@ -141,9 +142,10 @@ if (( ${#MISSING[@]} )); then
 fi
 
 # runtime sanity
-for b in git parted lsblk sgdisk cryptsetup nixos-generate-config nixos-install nix rsync tar pv bc; do
-  command -v "$b" >/dev/null || { echo "❌ Missing required tool: $b"; exit 1; }
-fi
+for b in git parted lsblk sgdisk cryptsetup nixos-generate-config nixos-install nix rsync tar jq bc
+do
+  command -v "$b" >/dev/null || { echo "ERROR: Missing required tool: $b"; exit 1; }
+done
 
 ###############################################################################
 # Helpers
@@ -170,12 +172,14 @@ format_root() {
 create_btrfs_layout() {
   local dev="$1"
   echo "🗂️  Creating BTRFS filesystem with optimal subvolume layout..."
-  sudo mkfs.btrfs -f -L nixos "$dev"
+  # Use explicit modern BTRFS defaults to suppress version warnings
+  sudo mkfs.btrfs -f -L nixos -m dup -O no-holes -R free-space-tree "$dev"
   sudo mount "$dev" /mnt
 
   # Create subvolumes following BTRFS best practices for NixOS
   echo "📁  Creating subvolumes: @root, @home, @nix, @snapshots..."
-  for sv in @root @home @nix @snapshots; do
+  for sv in @root @home @nix @snapshots
+  do
     sudo btrfs subvolume create /mnt/$sv
     echo "  ✓ Created subvolume: $sv"
   done

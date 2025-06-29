@@ -18,7 +18,6 @@ in
     ./networking.nix
     ./security.nix
     ../validation.nix  # Comprehensive validation and error handling
-    ../features/btrfs-snapshots.nix  # BTRFS snapshots management
   ];
 
   # Modern option definitions with proper types using centralized defaults
@@ -150,7 +149,69 @@ in
             type = types.submodule {
               options = {
                 enable = mkEnableOption "BTRFS snapshots with Snapper";
-                autoSnapshots = mkEnableOption "automatic timeline snapshots" // { default = true; };
+                autoSnapshots = mkOption {
+                  type = types.bool;
+                  default = true;
+                  description = "Enable automatic timeline snapshots";
+                };
+                rootConfig = {
+                  enable = mkOption {
+                    type = types.bool;
+                    default = true;
+                    description = "Enable snapshots for root filesystem (@root subvolume)";
+                  };
+                  timelineCreate = mkOption {
+                    type = types.bool;
+                    default = true;
+                    description = "Create automatic timeline snapshots for root";
+                  };
+                  timelineCleanup = mkOption {
+                    type = types.bool;
+                    default = true;
+                    description = "Enable automatic cleanup of old root snapshots";
+                  };
+                  retentionPolicy = mkOption {
+                    type = types.attrs;
+                    default = {
+                      TIMELINE_MIN_AGE = "1800";      # 30 minutes
+                      TIMELINE_LIMIT_HOURLY = "10";   # Keep 10 hourly snapshots
+                      TIMELINE_LIMIT_DAILY = "10";    # Keep 10 daily snapshots
+                      TIMELINE_LIMIT_WEEKLY = "0";    # No weekly snapshots
+                      TIMELINE_LIMIT_MONTHLY = "0";   # No monthly snapshots
+                      TIMELINE_LIMIT_YEARLY = "0";    # No yearly snapshots
+                    };
+                    description = "Retention policy for root snapshots";
+                  };
+                };
+                homeConfig = {
+                  enable = mkOption {
+                    type = types.bool;
+                    default = true;
+                    description = "Enable snapshots for home filesystem (@home subvolume)";
+                  };
+                  timelineCreate = mkOption {
+                    type = types.bool;
+                    default = true;
+                    description = "Create automatic timeline snapshots for home";
+                  };
+                  timelineCleanup = mkOption {
+                    type = types.bool;
+                    default = true;
+                    description = "Enable automatic cleanup of old home snapshots";
+                  };
+                  retentionPolicy = mkOption {
+                    type = types.attrs;
+                    default = {
+                      TIMELINE_MIN_AGE = "1800";      # 30 minutes
+                      TIMELINE_LIMIT_HOURLY = "24";   # Keep 24 hourly snapshots (1 day)
+                      TIMELINE_LIMIT_DAILY = "7";     # Keep 7 daily snapshots (1 week)
+                      TIMELINE_LIMIT_WEEKLY = "4";    # Keep 4 weekly snapshots (1 month)
+                      TIMELINE_LIMIT_MONTHLY = "3";   # Keep 3 monthly snapshots
+                      TIMELINE_LIMIT_YEARLY = "0";    # No yearly snapshots
+                    };
+                    description = "Retention policy for home snapshots";
+                  };
+                };
               };
             };
             default = {};

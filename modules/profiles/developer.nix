@@ -13,6 +13,8 @@ with lib;
     ../features/development.nix
     # Add virtualization features
     ../features/virtualization.nix
+    # Add BTRFS snapshots for development systems
+    ../features/btrfs-snapshots.nix
   ];
 
   # Developer profile extends desktop with development capabilities
