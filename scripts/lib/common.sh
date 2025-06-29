@@ -145,6 +145,7 @@ validate_username() {               # validate_username <name>
     [[ ${#1} -le 32 && $1 =~ ^[a-z][a-z0-9_-]*$ ]] || return 1
     local rsv=(root bin daemon adm lp sync shutdown halt mail nobody nixbld nixos)
     printf '%s\n' "${rsv[@]}" | grep -qx "$1" && return 1
+    return 0
 }
 validate_disk_device() {            # validate_disk_device </dev/…>
     [[ -b $1 && ! $1 =~ [0-9]+$ && $1 =~ ^/dev/(sd|vd|hd|nvme) ]] || return 1
