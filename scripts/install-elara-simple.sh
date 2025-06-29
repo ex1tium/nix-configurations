@@ -27,7 +27,7 @@ cleanup() { sudo kill $SUDO_LOOP_PID 2>/dev/null || true; }
 trap cleanup EXIT
 
 # Install missing tools
-NEEDED=(git parted util-linux gptfdisk cryptsetup rsync tar pv)
+NEEDED=(git parted util-linux gptfdisk cryptsetup rsync tar pv bc)
 MISSING=()
 for p in "${NEEDED[@]}"; do 
   case "$p" in
@@ -68,19 +68,41 @@ if [[ $MODE == 1 ]]; then
   echo "⚠️ ERASE ALL on $DISK"; read -rp "Type ERASE: " x; [[ $x == ERASE ]] || exit 1
   sudo parted -s "$DISK" mklabel gpt mkpart ESP fat32 1MiB 512MiB set 1 esp on mkpart primary 512MiB 100%
   sudo mkfs.fat -F32 -n boot "${DISK}1"
-  local r="${DISK}2"; [[ $ENCRYPT == yes ]] && { sudo cryptsetup luksFormat "$r" --type luks2; sudo cryptsetup open "$r" cryptroot; r=/dev/mapper/cryptroot; }
-  format_root "$r"; mount_root "$r"; sudo mount "${DISK}1" /mnt/boot
+  ROOT_PART="${DISK}2"
+  if [[ $ENCRYPT == yes ]]; then
+    sudo cryptsetup luksFormat "$ROOT_PART" --type luks2
+    sudo cryptsetup open "$ROOT_PART" cryptroot
+    ROOT_PART=/dev/mapper/cryptroot
+  fi
+  format_root "$ROOT_PART"
+  mount_root "$ROOT_PART"
+  sudo mount "${DISK}1" /mnt/boot
 elif [[ $MODE == 2 ]]; then
-  local esp=$(find_esp "$DISK"); [[ $esp ]] || { echo "No ESP"; exit 1; }
-  backup_esp "$esp"
-  read -rp "Root size GB [${RECOMMENDED_NIXOS_SIZE_GB}]: " SZ; SZ=${SZ:-$RECOMMENDED_NIXOS_SIZE_GB}; (( SZ>=MIN_NIXOS_SIZE_GB )) || exit 1
-  read s gap <<< "$(largest_gap "$DISK")"; (( gap>=SZ )) || { echo "Not enough free"; exit 1; }
-  local e=$(printf '%.2f' "$(bc -l <<< "$s+$SZ")")
-  sudo parted -s "$DISK" mkpart primary "${s}GB" "${e}GB"; sudo partprobe "$DISK"; sleep 2
-  local np="/dev/$(lsblk -ln -o NAME "$DISK" | tail -1)"; [[ $ENCRYPT == yes ]] && { sudo cryptsetup luksFormat "$np" --type luks2; sudo cryptsetup open "$np" cryptroot; np=/dev/mapper/cryptroot; }
-  format_root "$np"; mount_root "$np"; sudo mount "$esp" /mnt/boot
+  ESP_PART=$(find_esp "$DISK")
+  [[ $ESP_PART ]] || { echo "No ESP found"; exit 1; }
+  backup_esp "$ESP_PART"
+  read -rp "Root size GB [${RECOMMENDED_NIXOS_SIZE_GB}]: " SZ
+  SZ=${SZ:-$RECOMMENDED_NIXOS_SIZE_GB}
+  (( SZ>=MIN_NIXOS_SIZE_GB )) || { echo "Size too small"; exit 1; }
+  read START_POS GAP_SIZE <<< "$(largest_gap "$DISK")"
+  (( GAP_SIZE>=SZ )) || { echo "Not enough free space"; exit 1; }
+  END_POS=$(printf '%.2f' "$(bc -l <<< "$START_POS+$SZ")")
+  sudo parted -s "$DISK" mkpart primary "${START_POS}GB" "${END_POS}GB"
+  sudo partprobe "$DISK"
+  sleep 2
+  NEW_PART="/dev/$(lsblk -ln -o NAME "$DISK" | tail -1)"
+  if [[ $ENCRYPT == yes ]]; then
+    sudo cryptsetup luksFormat "$NEW_PART" --type luks2
+    sudo cryptsetup open "$NEW_PART" cryptroot
+    NEW_PART=/dev/mapper/cryptroot
+  fi
+  format_root "$NEW_PART"
+  mount_root "$NEW_PART"
+  sudo mount "$ESP_PART" /mnt/boot
 elif [[ $MODE == 3 ]]; then
-  echo "Manual: mount /mnt and /mnt/boot then Enter"; read; mountpoint -q /mnt && mountpoint -q /mnt/boot || exit 1
+  echo "Manual: mount /mnt and /mnt/boot then press Enter"
+  read
+  mountpoint -q /mnt && mountpoint -q /mnt/boot || { echo "Mount points not ready"; exit 1; }
 else
   echo "Invalid mode"; exit 1
 fi
