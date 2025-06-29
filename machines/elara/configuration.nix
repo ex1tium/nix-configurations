@@ -76,6 +76,9 @@
     in
     packages.vmTools;
 
+  # Enforce startup order to prevent xrdp/sddm deadlock
+  systemd.services.xrdp.after = [ "display-manager.service" ];
+
   # Virtual Machine Services (elara is a VM)
   services = {
     # QEMU guest agent for better VM integration

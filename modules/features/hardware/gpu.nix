@@ -186,8 +186,9 @@ in
         extraPackages = with pkgs; [ mesa ];
       };
 
-      # The virtio_gpu module is needed for basic display in QEMU/KVM.
+      # The virtio_gpu module      # Ensure the virtio driver is loaded for QEMU/KVM, including in the initrd.
       boot.kernelModules = [ "virtio_gpu" ];
+      boot.initrd.availableKernelModules = [ "virtio_gpu" ];
 
       # Add mesa-demos for verifying software rendering (e.g., `glxinfo | grep "OpenGL renderer"`).
       environment.systemPackages = with pkgs; [ mesa-demos ];

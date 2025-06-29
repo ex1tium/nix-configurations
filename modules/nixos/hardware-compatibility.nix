@@ -109,7 +109,7 @@ in
 
     debug = mkOption {
       type = types.bool;
-      default = false;
+      default = true;
       description = "Enable debug output for hardware detection.";
     };
   };
@@ -123,8 +123,11 @@ in
                   else if cfg.cpu.vendor == "amd" then [ "amd_iommu=on" "iommu=pt" ]
                   else [];
   in {
-    # Generate appropriate KVM modules based on detected CPU
-    boot.kernelModules = optionals config.mySystem.features.virtualization.enableKvm kvmModules;
+    # Load KVM modules only on physical hosts or on VMs with nested virt enabled.
+    boot.kernelModules = optionals (config.mySystem.features.virtualization.enableKvm && (!cfg.virtualization.isVm || config.mySystem.features.virtualization.enableKvmNested)) kvmModules;
+
+    # Also add KVM modules to the initrd under the same conditions.
+    boot.initrd.availableKernelModules = optionals (config.mySystem.features.virtualization.enableKvm && (!cfg.virtualization.isVm || config.mySystem.features.virtualization.enableKvmNested)) kvmModules;
 
     # Generate kernel parameters for IOMMU based on detected CPU
     boot.kernelParams = optionals config.mySystem.features.virtualization.enableGpuPassthrough iommuParams;
