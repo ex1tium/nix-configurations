@@ -152,11 +152,8 @@ bootstrap_dependencies() {
   local pkgs=(git parted util-linux gptfdisk cryptsetup rsync tar jq bc)
 
   if ! bootstrap_nix_dependencies "${pkgs[@]}"; then
-     local rc=$?
-     if (( rc == 2 )); then
-        exec nix-shell -p "${pkgs[@]}" --run "bash \"$0\" ${ORIGINAL_ARGS[*]}"
-     fi
-     exit $rc
+     log_error "Dependency check failed. Exiting."
+     cleanup_and_exit 1
   fi
 }
 

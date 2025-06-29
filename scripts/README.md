@@ -4,19 +4,24 @@ This directory contains comprehensive installation utilities for deploying NixOS
 
 ## 🚀 Quick Start
 
-### Comprehensive Machine Installer (Recommended)
-
-```bash
-# Download and run the comprehensive installer
-curl -L https://raw.githubusercontent.com/ex1tium/nix-configurations/main/scripts/install_machine.sh | bash
-```
-
-Or clone the repository first:
+### Automatic Dependency Management (Recommended)
 
 ```bash
 git clone https://github.com/ex1tium/nix-configurations.git
 cd nix-configurations
-./scripts/install_machine.sh
+
+# Run with automatic dependency management
+./scripts/install_nixos.sh
+
+# Or for elara-specific installation
+./scripts/install_nixos.sh elara
+```
+
+### Manual Dependency Management
+
+```bash
+# If you prefer to manage dependencies manually
+nix-shell -p git parted util-linux gptfdisk cryptsetup rsync tar jq bc --run './scripts/install_machine.sh'
 ```
 
 ### Legacy Elara Installer
@@ -27,6 +32,17 @@ cd nix-configurations
 ```
 
 ## 📋 Installation Scripts
+
+### `install_nixos.sh` - Wrapper with Automatic Dependencies (NEW)
+
+**The recommended way to run the installer** - automatically handles all dependencies in a single terminal session.
+
+**Features:**
+- 🔧 **Automatic dependency management** via nix-shell
+- 🖥️ **Single terminal session** - no re-execution or new windows
+- ❌ **Clear error reporting** - no silent failures
+- 🎯 **Elara shortcut** - `./scripts/install_nixos.sh elara`
+- 📋 **Pass-through options** - all install_machine.sh flags work
 
 ### `install_machine.sh` - Comprehensive Installation Utility
 

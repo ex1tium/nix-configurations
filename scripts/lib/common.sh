@@ -280,11 +280,18 @@ bootstrap_nix_dependencies() {      # bootstrap_nix_dependencies <packages...>
         fi
     done
 
-    # If packages are missing, re-exec with nix-shell
+    # If packages are missing, provide clear instructions
     if (( ${#missing[@]} > 0 )); then
-        log_info "Installing missing dependencies: ${missing[*]}"
-        # This will cause the script to re-exec with dependencies
-        return 2  # Special return code indicating re-exec needed
+        log_error "Missing required dependencies: ${missing[*]}"
+        log_error ""
+        log_error "Please run the installer with nix-shell to provide dependencies:"
+        log_error ""
+        log_error "  nix-shell -p ${packages[*]} --run './scripts/install_machine.sh'"
+        log_error ""
+        log_error "Or for the elara wrapper:"
+        log_error "  nix-shell -p ${packages[*]} --run './scripts/install-elara.sh'"
+        log_error ""
+        return 1
     fi
 
     log_info "All dependencies available"
