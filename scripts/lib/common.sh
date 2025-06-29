@@ -35,7 +35,7 @@ fi
 _log() {                             # _log <LEVEL> <msg…>
     local ts level=$1; shift
     ts=$(date '+%Y-%m-%d %H:%M:%S')
-    printf '[%s] [%s] %s\n' "$ts" "$level" "$*" | tee -a "$LOG_FILE"
+    printf '[%s] [%s] %s\n' "$ts" "$level" "$*" | tee -a "$LOG_FILE" >&2
 }
 log_info()  { _log INFO  "$*"; }
 log_warn()  { _log WARN  "$*"; }

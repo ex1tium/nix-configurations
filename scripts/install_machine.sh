@@ -235,7 +235,8 @@ select_disk() {
 
   mapfile -t disks < <(list_disks)
   for i in "${!disks[@]}"; do
-     size=$(lsblk -bn -o SIZE "${disks[$i]}"); size=$((size/1024/1024/1024))
+     size=$(lsblk -bn -o SIZE "${disks[$i]}")
+     size=$((size/1024/1024/1024))
      printf "  [%d] %s  %dGiB\n" $((i+1)) "${disks[$i]}" "$size"
   done
   read -rp "Disk: " n
