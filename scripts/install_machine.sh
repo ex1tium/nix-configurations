@@ -1007,10 +1007,7 @@ install_nixos() {
      return
   fi
 
-  # Preview and confirm hardware configuration
-  preview_hardware_config || return 1
-
-  # Copy the newly generated hardware config to overwrite the old one in the repo
+  # CRITICAL: Copy the freshly generated hardware config to repository BEFORE preview/install
   local generated_hw_config="/mnt/etc/nixos/hardware-configuration.nix"
   local repo_hw_config="machines/$SELECTED_MACHINE/hardware-configuration.nix"
 
@@ -1018,10 +1015,20 @@ install_nixos() {
     log_info "Copying fresh hardware config to repository..."
     cp "$generated_hw_config" "$repo_hw_config"
     log_success "Updated $repo_hw_config with fresh hardware configuration"
+
+    # Verify the copy was successful and contains UUIDs (not labels)
+    if grep -q "by-uuid" "$repo_hw_config"; then
+      log_success "Hardware config contains correct UUIDs"
+    else
+      log_warn "Hardware config may still contain labels instead of UUIDs"
+    fi
   else
     log_error "Generated hardware config not found at $generated_hw_config"
     return 1
   fi
+
+  # Preview and confirm hardware configuration (now using the correct one)
+  preview_hardware_config || return 1
 
   log_info "Starting NixOS installation..."
   if sudo nixos-install --no-root-password --flake ".#$SELECTED_MACHINE" --root /mnt; then
@@ -1033,41 +1040,8 @@ install_nixos() {
   fi
 }
 
-offer_hardware_config_commit() {
-  local repo_hw_config="machines/$SELECTED_MACHINE/hardware-configuration.nix"
-
-  echo
-  print_box "$CYAN" "💾 HARDWARE CONFIGURATION BACKUP" \
-    "${WHITE}The fresh hardware configuration has been generated for this installation." \
-    "" \
-    "${YELLOW}Would you like to commit it back to the repository?" \
-    "${DIM}This creates a backup and allows sharing the config with other systems."
-
-  if confirm "Commit hardware configuration to repository?"; then
-    log_info "Committing hardware configuration..."
-
-    if git add "$repo_hw_config" && git commit -m "Update hardware config for $SELECTED_MACHINE
-
-Generated during installation on $(date)
-- Fresh UUIDs for current partitioning
-- Current hardware detection
-- Installation mode: $INSTALLATION_MODE"; then
-      log_success "Hardware configuration committed to repository"
-
-      if confirm "Push changes to remote repository?"; then
-        if git push; then
-          log_success "Changes pushed to remote repository"
-        else
-          log_warn "Failed to push to remote - you may need to push manually later"
-        fi
-      fi
-    else
-      log_warn "Failed to commit hardware configuration"
-    fi
-  else
-    log_info "Hardware configuration not committed (local copy updated only)"
-  fi
-}
+# Hardware configuration commit functionality removed to simplify installation
+# The hardware configuration is automatically updated in the repository during installation
 
 final_validation() {
   if is_dry_run; then
@@ -1078,8 +1052,9 @@ final_validation() {
   # Post-installation validation
   validate_installation
 
-  # Offer to commit hardware config back to repo
-  offer_hardware_config_commit
+  echo
+  log_info "Hardware configuration has been updated in the repository"
+  log_info "The system is ready to boot with the correct hardware configuration"
 
   echo
 
