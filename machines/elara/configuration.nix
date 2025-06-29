@@ -104,6 +104,9 @@
   # Force X11 for SDDM/KDE to avoid Wayland instability in VMs
   services.displayManager.sddm.wayland.enable = lib.mkForce false;
 
+  # Force-enable sudo wrappers to fix 'setuid' error
+  security.sudo.enable = lib.mkForce true;
+
   # Machine-specific networking
   networking = {
     # Open additional ports for development
