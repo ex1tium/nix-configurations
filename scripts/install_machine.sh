@@ -23,7 +23,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 ###############################################################################
 readonly SCRIPT_VERSION="3.0.0"
 readonly REPO_URL_DEFAULT="https://github.com/ex1tium/nix-configurations.git"
-readonly TOTAL_STEPS=13
+readonly TOTAL_STEPS=14
 
 REPO_URL=$REPO_URL_DEFAULT
 REPO_BRANCH="main"
@@ -255,7 +255,215 @@ select_disk() {
 }
 
 ###############################################################################
-# 7.  Partitioning helpers
+# 7.  Environment cleanup operations
+###############################################################################
+cleanup_previous_installation() {
+  print_step 10 "$TOTAL_STEPS" "Clean up previous installation attempts"
+
+  if is_dry_run; then
+    log_info "DRY-RUN: Would perform comprehensive cleanup"
+    return 0
+  fi
+
+  # Check if cleanup is needed
+  local cleanup_needed=false
+
+  # Check for existing mounts
+  if mount | grep -q ' /mnt'; then
+    cleanup_needed=true
+    log_info "Found existing mount points under /mnt"
+  fi
+
+  # Check for existing partitions on target disk
+  if lsblk -ln -o NAME "$SELECTED_DISK" | grep -q "$(basename "$SELECTED_DISK")[0-9]"; then
+    cleanup_needed=true
+    log_info "Found existing partitions on $SELECTED_DISK"
+  fi
+
+  # Check for BTRFS subvolumes
+  local root_partition="${SELECTED_DISK}2"
+  if [[ -b $root_partition ]] && blkid -t TYPE=btrfs "$root_partition" &>/dev/null; then
+    cleanup_needed=true
+    log_info "Found existing BTRFS filesystem on $root_partition"
+  fi
+
+  if ! $cleanup_needed; then
+    log_info "No cleanup needed - disk appears clean"
+    return 0
+  fi
+
+  # Prompt for confirmation unless non-interactive
+  if (( ! NON_INTERACTIVE )); then
+    echo
+    log_warn "CLEANUP REQUIRED: Previous installation artifacts detected"
+    echo "  This will:"
+    echo "  - Unmount all mount points under /mnt"
+    echo "  - Delete any existing BTRFS subvolumes on $SELECTED_DISK"
+    echo "  - Wipe filesystem signatures from existing partitions"
+    echo "  - Clean up temporary files"
+    echo
+    read -rp "Proceed with cleanup? [y/N]: " confirm
+    case $confirm in
+      [Yy]|[Yy][Ee][Ss]) ;;
+      *) log_error "Cleanup cancelled by user"; exit 1 ;;
+    esac
+  fi
+
+  log_info "Starting comprehensive environment cleanup..."
+
+  # 1. Unmount all existing mount points under /mnt
+  cleanup_mount_points
+
+  # 2. Clean up BTRFS subvolumes if they exist
+  cleanup_btrfs_subvolumes
+
+  # 3. Wipe filesystem signatures from target partitions
+  cleanup_filesystem_signatures
+
+  # 4. Reset temporary files and state
+  cleanup_temporary_files
+
+  # 5. Validate clean state
+  validate_clean_disk_state
+
+  log_info "Environment cleanup completed successfully"
+}
+
+cleanup_mount_points() {
+  log_info "Unmounting all mount points under /mnt..."
+
+  # Get all mount points under /mnt in reverse order (deepest first)
+  local mounts
+  mounts=$(mount | grep ' /mnt' | awk '{print $3}' | sort -r)
+
+  if [[ -n $mounts ]]; then
+    while IFS= read -r mount_point; do
+      log_info "Unmounting: $mount_point"
+      if ! umount "$mount_point" 2>/dev/null; then
+        log_warn "Failed to unmount $mount_point, trying force unmount..."
+        umount -f "$mount_point" 2>/dev/null || umount -l "$mount_point" 2>/dev/null
+      fi
+    done <<< "$mounts"
+  else
+    log_info "No mount points under /mnt found"
+  fi
+
+  # Ensure /mnt itself is unmounted
+  if mountpoint -q /mnt 2>/dev/null; then
+    log_info "Unmounting /mnt"
+    umount /mnt 2>/dev/null || umount -f /mnt 2>/dev/null || umount -l /mnt 2>/dev/null
+  fi
+}
+
+cleanup_btrfs_subvolumes() {
+  log_info "Cleaning up existing BTRFS subvolumes on $SELECTED_DISK..."
+
+  local root_partition="${SELECTED_DISK}2"
+
+  # Check if partition exists and has BTRFS filesystem
+  if [[ ! -b $root_partition ]]; then
+    log_info "Root partition $root_partition does not exist, skipping BTRFS cleanup"
+    return 0
+  fi
+
+  # Check if it's a BTRFS filesystem
+  if ! blkid -t TYPE=btrfs "$root_partition" &>/dev/null; then
+    log_info "No BTRFS filesystem found on $root_partition"
+    return 0
+  fi
+
+  log_info "Found BTRFS filesystem on $root_partition, cleaning up subvolumes..."
+
+  # Create temporary mount point for cleanup
+  local temp_mount="/tmp/btrfs_cleanup_$$"
+  mkdir -p "$temp_mount"
+
+  # Mount the BTRFS filesystem
+  if mount "$root_partition" "$temp_mount" 2>/dev/null; then
+    # List and delete subvolumes
+    local subvolumes
+    subvolumes=$(btrfs subvolume list "$temp_mount" 2>/dev/null | awk '{print $NF}' | sort -r)
+
+    if [[ -n $subvolumes ]]; then
+      while IFS= read -r subvol; do
+        log_info "Deleting BTRFS subvolume: $subvol"
+        btrfs subvolume delete "$temp_mount/$subvol" 2>/dev/null || log_warn "Failed to delete subvolume: $subvol"
+      done <<< "$subvolumes"
+    else
+      log_info "No BTRFS subvolumes found"
+    fi
+
+    # Unmount temporary mount
+    umount "$temp_mount"
+  else
+    log_warn "Could not mount $root_partition for BTRFS cleanup"
+  fi
+
+  # Clean up temporary mount point
+  rmdir "$temp_mount" 2>/dev/null
+}
+
+cleanup_filesystem_signatures() {
+  log_info "Wiping filesystem signatures from target disk partitions..."
+
+  # Get all partitions on the target disk
+  local partitions
+  partitions=$(lsblk -ln -o NAME "$SELECTED_DISK" | grep -v "^$(basename "$SELECTED_DISK")$" | sed "s|^|/dev/|")
+
+  if [[ -n $partitions ]]; then
+    while IFS= read -r partition; do
+      if [[ -b $partition ]]; then
+        log_info "Wiping filesystem signatures from: $partition"
+        wipefs -a "$partition" 2>/dev/null || log_warn "Failed to wipe signatures from $partition"
+      fi
+    done <<< "$partitions"
+  else
+    log_info "No existing partitions found on $SELECTED_DISK"
+  fi
+}
+
+cleanup_temporary_files() {
+  log_info "Cleaning up temporary files and state..."
+
+  # Remove any temporary user override files
+  find machines/ -name "_user-override.nix" -delete 2>/dev/null || true
+
+  # Clean up any temporary mount directories
+  find /tmp -maxdepth 1 -name "btrfs_cleanup_*" -type d -exec rmdir {} \; 2>/dev/null || true
+  find /tmp -maxdepth 1 -name "nixos_install_*" -type d -exec rm -rf {} \; 2>/dev/null || true
+
+  log_info "Temporary files cleaned up"
+}
+
+validate_clean_disk_state() {
+  log_info "Validating clean disk state..."
+
+  # Check that /mnt is not mounted
+  if mountpoint -q /mnt 2>/dev/null; then
+    log_error "ERROR: /mnt is still mounted after cleanup"
+    return 1
+  fi
+
+  # Check for any remaining mounts under /mnt
+  local remaining_mounts
+  remaining_mounts=$(mount | grep ' /mnt' | wc -l)
+  if (( remaining_mounts > 0 )); then
+    log_error "ERROR: Found $remaining_mounts remaining mount points under /mnt"
+    mount | grep ' /mnt'
+    return 1
+  fi
+
+  # Verify disk is accessible
+  if [[ ! -b $SELECTED_DISK ]]; then
+    log_error "ERROR: Selected disk $SELECTED_DISK is not accessible"
+    return 1
+  fi
+
+  log_info "Disk state validation passed"
+}
+
+###############################################################################
+# 8.  Partitioning helpers
 ###############################################################################
 partition_disk_fresh() {
   create_fresh_partitions "$SELECTED_DISK"
@@ -298,7 +506,7 @@ setup_btrfs() {
 }
 
 setup_filesystem() {
-  print_step 11 "$TOTAL_STEPS" "Create filesystem & mount"
+  print_step 12 "$TOTAL_STEPS" "Create filesystem & mount"
   local part=$ROOT_PARTITION
 
   if (( ENABLE_ENCRYPTION )); then
@@ -324,7 +532,7 @@ setup_filesystem() {
 }
 
 ###############################################################################
-# 8.  User override & build validation
+# 9.  User override & build validation
 ###############################################################################
 configure_user_override() {
   PRIMARY_USER=${PRIMARY_USER:-$(detect_primary_user_from_flake .)}
@@ -334,20 +542,20 @@ configure_user_override() {
 }
 
 dry_run_build() {
-  print_step 10 "$TOTAL_STEPS" "Validate configuration build"
+  print_step 11 "$TOTAL_STEPS" "Validate configuration build"
   validate_nix_build ".#nixosConfigurations.$SELECTED_MACHINE.config.system.build.toplevel"
 }
 
 ###############################################################################
-# 9.  HW config & installation
+# 10.  HW config & installation
 ###############################################################################
 generate_hw_config() {
-  print_step 12 "$TOTAL_STEPS" "Generate hardware-configuration.nix"
+  print_step 13 "$TOTAL_STEPS" "Generate hardware-configuration.nix"
   dry_run_cmd sudo nixos-generate-config --root /mnt >/dev/null
 }
 
 install_nixos() {
-  print_step 13 "$TOTAL_STEPS" "nixos-install"
+  print_step 14 "$TOTAL_STEPS" "nixos-install"
 
   if is_dry_run; then
      log_info "DRY-RUN: would execute nixos-install"
@@ -359,7 +567,7 @@ install_nixos() {
 }
 
 ###############################################################################
-# 10.  Main orchestration
+# 11.  Main orchestration
 ###############################################################################
 main() {
   parse_arguments "$@"
@@ -375,6 +583,9 @@ main() {
   select_filesystem
   select_encryption
   select_disk
+
+  # Clean up any previous installation attempts
+  cleanup_previous_installation
 
   # Partition according to mode
   case $INSTALLATION_MODE in
