@@ -993,11 +993,22 @@ validate_and_fix_hardware_config() {
   # Check for correct filesystem UUIDs
   log_info "Verifying filesystem UUIDs in hardware configuration..."
 
-  # Get actual UUIDs from mounted filesystems
-  local root_uuid esp_uuid
-  root_uuid=$(findmnt -n -o UUID /mnt)
-  esp_uuid=$(findmnt -n -o UUID /mnt/boot)
+  # Get actual UUIDs from block devices (not mounts)
+  local root_uuid esp_uuid root_device esp_device
 
+  # Get root device UUID
+  root_device=$(findmnt -n -o SOURCE /mnt | sed 's/\[.*\]//')  # Remove subvolume part
+  if [[ -n $root_device ]]; then
+    root_uuid=$(blkid -s UUID -o value "$root_device" 2>/dev/null)
+  fi
+
+  # Get ESP device UUID
+  esp_device=$(findmnt -n -o SOURCE /mnt/boot 2>/dev/null)
+  if [[ -n $esp_device ]]; then
+    esp_uuid=$(blkid -s UUID -o value "$esp_device" 2>/dev/null)
+  fi
+
+  log_info "Detected devices - Root: $root_device, ESP: $esp_device"
   log_info "Detected UUIDs - Root: $root_uuid, ESP: $esp_uuid"
 
   # Verify UUIDs exist in hardware config
@@ -1046,14 +1057,23 @@ fix_btrfs_hardware_config() {
   # Create a backup
   sudo cp "$hw_config" "${hw_config}.backup"
 
-  # Get the root device UUID
-  local root_uuid
-  root_uuid=$(findmnt -n -o UUID /mnt)
+  # Get the root device UUID - use the actual block device, not the mount
+  local root_uuid root_device
+  root_device=$(findmnt -n -o SOURCE /mnt | sed 's/\[.*\]//')  # Remove subvolume part
 
-  if [[ -z $root_uuid ]]; then
-    log_error "Cannot determine root filesystem UUID"
+  if [[ -z $root_device ]]; then
+    log_error "Cannot determine root device"
     return 1
   fi
+
+  root_uuid=$(blkid -s UUID -o value "$root_device" 2>/dev/null)
+
+  if [[ -z $root_uuid ]]; then
+    log_error "Cannot determine root filesystem UUID from device $root_device"
+    return 1
+  fi
+
+  log_info "Root device: $root_device"
 
   # Get the ESP UUID safely
   local esp_uuid
@@ -1089,6 +1109,9 @@ fix_btrfs_hardware_config() {
 
   boot.initrd.availableKernelModules = [ "ahci" "xhci_pci" "virtio_pci" "sr_mod" "virtio_blk" ];
   boot.initrd.kernelModules = [ ];
+
+  # Ensure BTRFS support in initrd
+  boot.initrd.supportedFilesystems = [ "btrfs" ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 

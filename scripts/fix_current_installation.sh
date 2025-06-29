@@ -89,9 +89,11 @@ main() {
     
     log_warn "Hardware configuration needs fixing..."
     
-    # Get UUIDs
+    # Get UUIDs using the correct method
     local root_uuid esp_uuid
     root_uuid=$(blkid -s UUID -o value "$root_device")
+
+    log_info "Root device: $root_device"
     
     if [[ -n ${boot_devices[0]:-} ]]; then
         esp_uuid=$(blkid -s UUID -o value "${boot_devices[0]}")
@@ -123,6 +125,9 @@ main() {
   boot.initrd.kernelModules = [ ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
+
+  # Ensure BTRFS support in initrd
+  boot.initrd.supportedFilesystems = [ "btrfs" ];
 
   fileSystems."/" = {
     device = "/dev/disk/by-uuid/$root_uuid";
