@@ -56,12 +56,16 @@
         machineConfig = machines.${hostname};
         profileModule = ./modules/profiles/${machineConfig.profile}.nix;
 
-        # Check if hardware-configuration.nix exists, use template if not
-        hardwareConfigPath = ./machines/${hostname}/hardware-configuration.nix;
-        hardwareConfigExists = builtins.pathExists hardwareConfigPath;
-        hardwareModule = if hardwareConfigExists
-          then hardwareConfigPath
-          else ./machines/templates/hardware-template.nix;
+        # Hardware configuration resolution:
+        # 1. During installation: use freshly generated /mnt/etc/nixos/hardware-configuration.nix
+        # 2. After installation: use committed machines/${hostname}/hardware-configuration.nix
+        machineHwConfig = ./machines/${hostname}/hardware-configuration.nix;
+        installHwConfig = /mnt/etc/nixos/hardware-configuration.nix;
+
+        hardwareModule =
+          if builtins.pathExists installHwConfig then installHwConfig
+          else if builtins.pathExists machineHwConfig then machineHwConfig
+          else throw "No hardware configuration found for ${hostname}. Run nixos-generate-config first.";
       in
       nixpkgs.lib.nixosSystem {
         inherit system;

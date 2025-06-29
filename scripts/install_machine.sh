@@ -1007,20 +1007,20 @@ install_nixos() {
      return
   fi
 
-  # CRITICAL: Copy the freshly generated hardware config to repository BEFORE preview/install
+  # Verify the generated hardware config exists and contains UUIDs
   local generated_hw_config="/mnt/etc/nixos/hardware-configuration.nix"
-  local repo_hw_config="machines/$SELECTED_MACHINE/hardware-configuration.nix"
 
   if [[ -f "$generated_hw_config" ]]; then
-    log_info "Copying fresh hardware config to repository..."
-    cp "$generated_hw_config" "$repo_hw_config"
-    log_success "Updated $repo_hw_config with fresh hardware configuration"
+    log_info "Verifying generated hardware configuration..."
 
-    # Verify the copy was successful and contains UUIDs (not labels)
-    if grep -q "by-uuid" "$repo_hw_config"; then
-      log_success "Hardware config contains correct UUIDs"
+    # Verify the config contains UUIDs (not labels)
+    if grep -q "by-uuid" "$generated_hw_config"; then
+      log_success "Hardware config contains correct UUIDs - ready for installation"
     else
-      log_warn "Hardware config may still contain labels instead of UUIDs"
+      log_error "Hardware config contains labels instead of UUIDs - this will cause boot failure"
+      log_info "Content preview:"
+      head -20 "$generated_hw_config" | grep -E "(device|fsType)" || true
+      return 1
     fi
   else
     log_error "Generated hardware config not found at $generated_hw_config"
@@ -1053,14 +1053,18 @@ final_validation() {
   validate_installation
 
   echo
-  log_info "Hardware configuration has been updated in the repository"
-  log_info "The system is ready to boot with the correct hardware configuration"
+  log_info "Hardware configuration generated and ready for use"
+  log_info "After first successful boot, commit the hardware config to the repository"
 
   echo
 
   # Beautiful completion banner using the box helper
   print_box "$GREEN" "🎉 INSTALLATION COMPLETE! 🎉" \
     "${WHITE}Your NixOS system is ready! Remove the installation media and reboot." \
+    "" \
+    "${YELLOW}📝 After first boot, commit hardware config:" \
+    "${DIM}   git add machines/$SELECTED_MACHINE/hardware-configuration.nix" \
+    "${DIM}   git commit -m \"Add hardware config for $SELECTED_MACHINE\"" \
     "" \
     "${CYAN}🚀 Reboot command: ${YELLOW}sudo reboot"
 
