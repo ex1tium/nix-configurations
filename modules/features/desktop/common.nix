@@ -18,7 +18,7 @@ in
       extraPortals = with pkgs; [
         xdg-desktop-portal-gtk
       ] ++ optionals (desktopEnvironment == "plasma") [
-        xdg-desktop-portal-kde
+        kdePackages.xdg-desktop-portal-kde
       ];
       config.common.default =
         if desktopEnvironment == "plasma" then [ "kde" ]
@@ -26,7 +26,7 @@ in
     };
 
     # Desktop Audio System - PipeWire (complete configuration)
-    hardware.pulseaudio.enable = mkDefault false; # Disable PulseAudio
+    services.pulseaudio.enable = false; # Disable PulseAudio
     security.rtkit.enable = mkDefault true; # RealtimeKit for better audio performance
 
     services.pipewire = {
@@ -69,7 +69,7 @@ in
         vaapiIntel
         vaapiVdpau
         libvdpau-va-gl
-        mesa.drivers
+        mesa
         amdvlk
       ];
     };
@@ -86,9 +86,11 @@ in
         fira-code
         fira-code-symbols
         jetbrains-mono
-        (nerdfonts.override { 
-          fonts = [ "FiraCode" "JetBrainsMono" "DroidSansMono" "Hack" ]; 
-        })
+        # Updated nerdfonts to new package structure
+        nerd-fonts.fira-code
+        nerd-fonts.jetbrains-mono
+        nerd-fonts.droid-sans-mono
+        nerd-fonts.hack
         ubuntu_font_family
         roboto
         open-sans
@@ -118,7 +120,6 @@ in
       locate = {
         enable = mkDefault true;
         package = pkgs.mlocate;
-        localuser = null;
       };
       upower.enable = mkDefault true;
       udisks2.enable = mkDefault true;
@@ -176,9 +177,8 @@ in
       optical = {};
     };
 
-    # Console Configuration
+    # Console Configuration (keyMap is set by locale modules)
     console = {
-      keyMap = mkDefault "us";
       font = mkDefault "Lat2-Terminus16";
     };
 

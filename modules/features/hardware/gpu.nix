@@ -67,7 +67,7 @@ in
         enable32Bit = mkDefault true;
         extraPackages = with pkgs; [
           amdvlk                     # AMD Vulkan driver
-          mesa.drivers               # Mesa drivers including radeonsi
+          mesa                       # Mesa drivers including radeonsi
           rocm-opencl-icd           # OpenCL support
           rocm-opencl-runtime       # OpenCL runtime
         ];
@@ -112,21 +112,6 @@ in
       services.xserver.videoDrivers = [ "nvidia" ];
       
       hardware.nvidia = {
-        # Use the open source version of the kernel module
-        open = mkDefault false;  # Set to true for RTX 30 series and newer
-        
-        # Enable the Nvidia settings menu
-        nvidiaSettings = mkDefault true;
-        
-        # Optionally, you may need to select the appropriate driver version
-        package = config.boot.kernelPackages.nvidiaPackages.stable;
-        
-        # Enable power management (experimental)
-        powerManagement = {
-          enable = mkDefault false;
-          finegrained = mkDefault false;
-        };
-        
         # Use the NVidia open source kernel module (not to be confused with the
         # independent third-party "nouveau" open source driver).
         # Support is limited to the RTX 30 and newer series.
@@ -134,11 +119,19 @@ in
         # https://github.com/NVIDIA/open-gpu-kernel-modules#compatible-gpus
         # Only available from driver 515.43.04+
         # Currently alpha-quality/buggy, so false is currently the recommended setting.
-        open = mkDefault false;
+        open = mkDefault false;  # Set to true for RTX 30 series and newer
 
-        # Enable the Nvidia settings menu,
-        # accessible via `nvidia-settings`.
+        # Enable the Nvidia settings menu, accessible via `nvidia-settings`.
         nvidiaSettings = mkDefault true;
+
+        # Optionally, you may need to select the appropriate driver version
+        package = config.boot.kernelPackages.nvidiaPackages.stable;
+
+        # Enable power management (experimental)
+        powerManagement = {
+          enable = mkDefault false;
+          finegrained = mkDefault false;
+        };
       };
 
       # NVIDIA graphics configuration
@@ -183,31 +176,28 @@ in
       # Enable hardware acceleration
       hardware.graphics.enable = true;
       
-      # Vulkan support
+      # GPU support packages (minimal essential set)
       environment.systemPackages = with pkgs; [
+        # Vulkan support
         vulkan-loader
         vulkan-validation-layers
         vulkan-tools
+        # OpenGL information and debugging
+        glxinfo
+        mesa-demos
+      ] ++ optionals isDesktop [
+        gpu-viewer                   # GPU information viewer (desktop only)
       ];
 
       # OpenGL and Vulkan environment variables
       environment.sessionVariables = {
         # Force hardware acceleration
         MESA_LOADER_DRIVER_OVERRIDE = mkIf (gpuType == "amd") "radeonsi";
-        
+
         # Vulkan ICD selection
-        VK_ICD_FILENAMES = mkIf (gpuType == "intel") 
+        VK_ICD_FILENAMES = mkIf (gpuType == "intel")
           "/run/opengl-driver/share/vulkan/icd.d/intel_icd.x86_64.json";
       };
-
-      # GPU monitoring and debugging tools
-      environment.systemPackages = with pkgs; [
-        glxinfo                      # OpenGL information
-        vulkan-tools                 # Vulkan utilities
-        mesa-demos                   # OpenGL demos
-      ] ++ optionals isDesktop [
-        gpu-viewer                   # GPU information viewer
-      ];
     })
 
     # Desktop-specific GPU configuration

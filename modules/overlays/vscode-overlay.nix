@@ -14,7 +14,6 @@ final: prev: {
       ms-vscode.cmake-tools
       
       # JavaScript/TypeScript
-      ms-vscode.vscode-typescript-next
       esbenp.prettier-vscode
       dbaeumer.vscode-eslint
       
@@ -42,9 +41,7 @@ final: prev: {
       ms-vscode-remote.remote-containers
       
       # Productivity
-      ms-vscode.vscode-json
       redhat.vscode-yaml
-      ms-vscode.hexeditor
       
       # Themes and UI
       pkief.material-icon-theme

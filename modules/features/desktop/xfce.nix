@@ -113,18 +113,9 @@ with lib;
     };
 
     # XFCE-specific services configuration
-    services.xserver = {
-      # Touchpad configuration for XFCE
-      libinput = {
-        enable = true;
-        touchpad = {
-          tapping = true;
-          naturalScrolling = false;        # Traditional scrolling for older users
-          middleEmulation = true;
-          disableWhileTyping = true;
-        };
-      };
-    };
+    # Libinput configuration is now handled by display-server.nix with the new structure
+    # Override specific settings for XFCE if needed
+    services.libinput.touchpad.naturalScrolling = mkForce false;  # Traditional scrolling for older users
 
     # Networking configuration is handled by common.nix
     # Override power saving for low-spec systems
@@ -172,22 +163,22 @@ with lib;
       </channel>
     '';
 
-    # Disable heavy desktop effects
-    environment.etc."xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml".text = ''
-      <?xml version="1.0" encoding="UTF-8"?>
-      <channel name="xfce4-desktop" version="1.0">
-        <property name="backdrop" type="empty">
-          <property name="screen0" type="empty">
-            <property name="monitor0" type="empty">
-              <property name="workspace0" type="empty">
-                <property name="color-style" type="int" value="0"/>
-                <property name="image-style" type="int" value="0"/>
-              </property>
-            </property>
-          </property>
-        </property>
-      </channel>
-    '';
+    # Disable heavy desktop effects (temporarily disabled)
+    # environment.etc."xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml".text = ''
+    #   <?xml version="1.0" encoding="UTF-8"?>
+    #   <channel name="xfce4-desktop" version="1.0">
+    #     <property name="backdrop" type="empty">
+    #       <property name="screen0" type="empty">
+    #         <property name="monitor0" type="empty">
+    #           <property name="workspace0" type="empty">
+    #             <property name="color-style" type="int" value="0"/>
+    #             <property name="image-style" type="int" value="0"/>
+    #           </property>
+    #         </property>
+    #       </property>
+    #     </property>
+    #   </channel>
+    # '';
 
     # Memory optimization
     zramSwap = {

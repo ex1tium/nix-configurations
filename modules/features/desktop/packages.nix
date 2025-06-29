@@ -27,40 +27,19 @@ in
       packages.multimediaCodecs ++
       packages.imageViewers ++
       packages.terminalEmulators ++
-      optionals (!isLowSpec) [
-      # Additional packages for full-featured systems
-      inkscape                           # Vector graphics
-      discord                            # Communication
-      baobab                             # Disk usage analyzer
-      kitty                              # Additional terminal
-      
-    ] ++ optionals (desktopEnvironment == "plasma") [
-      # KDE-specific packages
-      kdePackages.kate
-      kdePackages.konsole
-      kdePackages.dolphin
-      kdePackages.ark
-      kdePackages.okular
-      kdePackages.gwenview
-      kdePackages.spectacle
-      kdePackages.kalk
-      kdePackages.kcalc
-      kdePackages.kcharselect
-      kdePackages.kcolorchooser
-      kdePackages.kruler
-      kdePackages.filelight
-      kdePackages.systemsettings
-      kdePackages.plasma-systemmonitor
-      kdePackages.ksystemlog
-      kdePackages.partitionmanager
-      kdePackages.elisa
-      kdePackages.dragon
-      kdePackages.kdeconnect-kde
-      
-      # KDE office integration
-      libreoffice-qt6-fresh              # Qt6 version for better KDE integration
-      
-    ] ++ optionals (desktopEnvironment == "xfce") [
+      optionals (!isLowSpec) (with pkgs; [
+      # Additional packages for full-featured systems can be added per-machine
+      # Examples: inkscape, discord, baobab, kitty, etc.
+
+    ]) ++ optionals (desktopEnvironment == "plasma") (with pkgs; [
+      # KDE-specific packages - only include packages that are known to work
+      # Most KDE applications are included automatically with plasma6
+      # Additional packages can be added per-machine as needed
+
+      # Office integration (using standard package name)
+      libreoffice                        # LibreOffice office suite
+
+    ]) ++ optionals (desktopEnvironment == "xfce") (with pkgs; [
       # XFCE-specific packages
       xfce.thunar
       xfce.thunar-volman
@@ -78,17 +57,13 @@ in
       xfce.xfce4-weather-plugin
       xfce.xfce4-clipman-plugin
       xfce.xfce4-systemload-plugin
-      
+
       # XFCE-specific applications
       mousepad                           # Text editor
       ristretto                          # Image viewer
       xarchiver                          # Archive manager
-      
-    ] ++ optionals (config.mySystem.features.development.enable && elem "vscode" config.mySystem.features.development.editors) [
-      # Development editors (handled by development feature)
-      # VS Code is configured in development/vscode.nix
-      
-    ];
+
+    ]);
 
     # Desktop-specific program configurations
     programs = {

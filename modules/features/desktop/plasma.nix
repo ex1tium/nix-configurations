@@ -41,9 +41,6 @@ with lib;
 
     # KDE-specific services
     services = {
-      # KDE Connect for mobile integration
-      kdeconnect.enable = mkDefault true;
-      
       # Discover backend for software management
       packagekit.enable = mkDefault true;
       
@@ -54,15 +51,16 @@ with lib;
     # KDE Plasma specific packages (common packages are in packages.nix)
     environment.systemPackages = with pkgs; [
       # KDE-specific development tools (if development is enabled)
-    ] ++ optionals config.mySystem.features.development.enable [
-      kdePackages.kdevelop               # IDE
-      kdePackages.umbrello               # UML modeler
-      kdePackages.krfb                   # Desktop sharing
-      kdePackages.krdc                   # Remote desktop client
-      kdePackages.kamoso                 # Camera application
-      kdePackages.kmail                  # Email client (optional)
-      kdePackages.kontact                # PIM suite (optional)
-    ];
+    ] ++ optionals config.mySystem.features.development.enable (with pkgs; [
+      # Development tools - using working alternatives
+      qtcreator                          # IDE alternative to kdevelop
+      dia                                # UML modeler alternative to umbrello
+      remmina                            # Remote desktop client alternative to krdc
+      cheese                             # Camera application alternative to kamoso
+      thunderbird                        # Email client alternative to kmail
+      # Note: krfb (desktop sharing) functionality is provided by KDE Plasma built-in sharing
+      # Note: kontact functionality is provided by individual applications (thunderbird, etc.)
+    ]);
 
     # KDE-specific environment variables
     environment.sessionVariables = {
@@ -93,7 +91,9 @@ with lib;
 
     # Additional KDE-specific fonts (base fonts are in common.nix)
     fonts.packages = with pkgs; [
-      oxygen-fonts
+      # oxygen-fonts has been removed from nixpkgs
+      # Using liberation fonts as alternative
+      liberation_ttf
     ];
 
     # Hardware configuration is handled by common.nix
@@ -110,17 +110,9 @@ with lib;
     # KDE-specific services configuration
     services.xserver = {
       enable = true;
-      
-      # Touchpad configuration for KDE
-      libinput = {
-        enable = true;
-        touchpad = {
-          tapping = true;
-          naturalScrolling = true;
-          middleEmulation = true;
-          disableWhileTyping = true;
-        };
-      };
+
+      # Touchpad configuration is now handled by display-server.nix with the new structure
+      # KDE-specific overrides can be added here if needed
     };
 
     # Networking configuration is handled by common.nix
@@ -132,21 +124,30 @@ with lib;
       style = "breeze";
     };
 
-    # Low-spec optimizations (if enabled)
-    environment.etc."kderc".text = mkIf config.mySystem.features.desktop.lowSpec ''
+    # KDE configuration file (always present for AppArmor compatibility)
+    environment.etc."kderc".text = if config.mySystem.features.desktop.lowSpec then ''
       [KDE Performance]
       AnimationDurationFactor=0.5
       GraphicsSystem=raster
-      
+
       [Compositing]
       Enabled=true
       Backend=OpenGL
       GLCore=true
-      
+
       [Effects]
       kwin4_effect_fadeEnabled=false
       kwin4_effect_slidingpopupsEnabled=false
       kwin4_effect_translucencyEnabled=false
+    '' else ''
+      # Default KDE configuration
+      [KDE Performance]
+      AnimationDurationFactor=1.0
+
+      [Compositing]
+      Enabled=true
+      Backend=OpenGL
+      GLCore=true
     '';
   };
 }

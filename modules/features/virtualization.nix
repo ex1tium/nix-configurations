@@ -147,12 +147,12 @@ with lib;
 
       # LXC/LXD tools
       lxc             # LXC container tools
-      lxd             # LXD daemon and client
-    ] ++ optionals config.mySystem.features.desktop.enable [
+      lxd-lts         # LXD daemon and client (LTS version)
+    ] ++ optionals config.mySystem.features.desktop.enable (with pkgs; [
       # GUI tools
       virt-manager
       # gnome-boxes not available in current nixpkgs
-    ];
+    ]);
 
     # User groups for virtualization
     users.users.${config.mySystem.user}.extraGroups = [

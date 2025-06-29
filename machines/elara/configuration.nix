@@ -23,9 +23,9 @@
       };
 
       virtualization = {
-        # Enable all virtualization for development
+        # Enable virtualization for development
         enableDocker = true;
-        enablePodman = true;
+        enablePodman = false; # Disabled to avoid conflict with Docker
         enableLibvirt = true;
       };
     };

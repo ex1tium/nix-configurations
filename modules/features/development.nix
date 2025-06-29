@@ -27,53 +27,13 @@ with lib;
       packages.textProcessing ++
       packages.versionControl ++
       packages.documentationTools ++
-      optionals (elem "nodejs" config.mySystem.features.development.languages) [
-      # Node.js Development
-      nodejs_latest
-      nodePackages.npm
-      nodePackages.yarn
-      nodePackages.pnpm
-      nodePackages.typescript-language-server
-      nodePackages.eslint
-      nodePackages.prettier
-      nodePackages.nodemon
-    ] ++ optionals (elem "go" config.mySystem.features.development.languages) [
-      # Go Development
-      go
-      gopls
-      go-tools
-      delve
-      golangci-lint
-    ] ++ optionals (elem "python" config.mySystem.features.development.languages) [
-      # Python Development
-      python3
-      python3Packages.pip
-      poetry
-      python3Packages.virtualenv
-      python3Packages.black
-      python3Packages.flake8
-      python3Packages.mypy
-      pyright
-    ] ++ optionals (elem "rust" config.mySystem.features.development.languages) [
-      # Rust Development
-      rustc
-      cargo
-      rust-analyzer
-      clippy
-      rustfmt
-    ] ++ optionals (elem "nix" config.mySystem.features.development.languages) [
-      # Nix Development
-      nixd
-      nixpkgs-fmt
-      statix
-    ] ++ optionals config.mySystem.features.desktop.enable [
-      # VS Code is handled by the vscode.nix module
-      # GUI Development Tools (only if desktop is enabled)
-      dbeaver-bin
-      postman
-      insomnia
-      wireshark
-    ];
+      # Language-specific packages are added per-machine as needed
+      # This allows for flexible development environments without bloating base profiles
+      # Example: Add nodejs, go, python3, rust, etc. in machine-specific configurations
+
+      # GUI Development Tools are handled by the vscode.nix module
+      # Additional tools like dbeaver, postman, etc. should be added per-machine
+      [];
 
     # Development Services
     # Note: Databases (PostgreSQL, MySQL, Redis) should be run in containers
@@ -237,7 +197,10 @@ with lib;
       fira-code-symbols
       jetbrains-mono
       source-code-pro
-      (nerdfonts.override { fonts = [ "FiraCode" "JetBrainsMono" "SourceCodePro" ]; })
+      # Updated nerdfonts to new package structure
+      nerd-fonts.fira-code
+      nerd-fonts.jetbrains-mono
+      nerd-fonts.sauce-code-pro
     ];
   };
 }

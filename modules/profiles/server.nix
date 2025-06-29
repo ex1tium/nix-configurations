@@ -227,8 +227,7 @@ with lib;
     thermald.enable = mkForce false;
   };
 
-  # Disable audio completely for servers
-  hardware.pulseaudio.enable = mkForce false;
+  # Audio is disabled by default for servers (no desktop features)
 
   # Enable automatic security updates for servers
   system.autoUpgrade = {

@@ -21,29 +21,7 @@ with lib;
 
     # XDG Portal configuration is handled by specific DE modules
 
-    # Desktop Audio System - PipeWire (complete configuration)
-    hardware.pulseaudio.enable = mkDefault false; # Disable PulseAudio
-    security.rtkit.enable = mkDefault true; # RealtimeKit for better audio performance
-
-    services.pipewire = {
-      enable = mkDefault true;
-      alsa.enable = mkDefault true;
-      alsa.support32Bit = mkDefault true;
-      pulse.enable = mkDefault true; # PulseAudio compatibility
-
-      # Low-latency configuration for desktop use
-      extraConfig.pipewire."92-low-latency" = {
-        context.properties = {
-          default.clock.rate = 48000;
-          default.clock.quantum = 32;
-          default.clock.min-quantum = 32;
-          default.clock.max-quantum = 32;
-        };
-      };
-
-      # Enable JACK support for desktop audio production
-      jack.enable = true;
-    };
+    # Audio configuration is handled by common.nix
 
     # Printing Support
     services.printing = {
@@ -91,9 +69,11 @@ with lib;
         fira-code
         fira-code-symbols
         jetbrains-mono
-        (nerdfonts.override { 
-          fonts = [ "FiraCode" "JetBrainsMono" "DroidSansMono" "Hack" ]; 
-        })
+        # Updated nerdfonts to new package structure
+        nerd-fonts.fira-code
+        nerd-fonts.jetbrains-mono
+        nerd-fonts.droid-sans-mono
+        nerd-fonts.hack
         ubuntu_font_family
         roboto
         open-sans
@@ -122,11 +102,7 @@ with lib;
     services = {
       flatpak.enable = mkDefault true;
       tumbler.enable = mkDefault true;
-      locate = {
-        enable = mkDefault true;
-        package = pkgs.mlocate;
-        localuser = null;
-      };
+      # locate service configuration is handled by common.nix
       upower.enable = mkDefault true;
       udisks2.enable = mkDefault true;
       fwupd.enable = mkDefault true;

@@ -105,8 +105,8 @@ with lib;
     enableRedistributableFirmware = mkDefault true;
     enableAllFirmware = mkDefault false;
     
-    # Audio optimization
-    pulseaudio.enable = mkForce false;
+    # Audio optimization (handled by desktop common module)
+    # pulseaudio.enable = mkForce false;
     
     # Bluetooth disabled by default
     bluetooth.enable = mkDefault false;

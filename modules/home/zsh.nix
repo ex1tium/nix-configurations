@@ -63,7 +63,7 @@ with lib;
     };
 
     # Modern ZSH initialization
-    initExtra = ''
+    initContent = ''
       # Powerlevel10k instant prompt - must be at the top
       if [[ -r "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh" ]]; then
         source "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh"
@@ -256,7 +256,8 @@ with lib;
     zsh-powerlevel10k
 
     # Fonts for Powerlevel10k
-    (nerdfonts.override { fonts = [ "FiraCode" "Meslo" ]; })
+    nerd-fonts.fira-code
+    nerd-fonts.meslo-lg
 
     # Enhanced ZSH plugins
     zsh-fast-syntax-highlighting  # Enhanced syntax highlighting

@@ -17,6 +17,7 @@ in
     ./users.nix
     ./networking.nix
     ./security.nix
+    ../validation.nix  # Comprehensive validation and error handling
   ];
 
   # Modern option definitions with proper types using centralized defaults
@@ -176,33 +177,6 @@ in
     # The actual configuration is handled by the imported modules
     # This ensures proper module composition and avoids conflicts
 
-    # Assertions to validate configuration
-    assertions = [
-      {
-        assertion = config.mySystem.user != "";
-        message = "mySystem.user must be set to a non-empty string";
-      }
-      {
-        assertion = config.mySystem.hostname != "";
-        message = "mySystem.hostname must be set to a non-empty string";
-      }
-      {
-        assertion = !(config.mySystem.features.virtualization.enableVirtualbox && config.mySystem.features.virtualization.enableLibvirt);
-        message = "VirtualBox and libvirt/KVM cannot be enabled simultaneously due to conflicts";
-      }
-      {
-        assertion = config.mySystem.features.desktop.enable -> (config.mySystem.features.desktop.environment != "");
-        message = "Desktop environment must be specified when desktop features are enabled";
-      }
-    ];
-
-    # Warnings for common configuration issues
-    warnings = []
-      ++ optional (config.mySystem.features.development.enable && !config.mySystem.features.virtualization.enableDocker && !config.mySystem.features.virtualization.enablePodman)
-         "Development features are enabled but no container runtime is configured"
-      ++ optional (config.mySystem.features.desktop.enable && !config.mySystem.features.desktop.enableWayland && !config.mySystem.features.desktop.enableX11)
-         "Desktop is enabled but neither Wayland nor X11 is enabled"
-      ++ optional (config.mySystem.hardware.kernel == "latest" && !config.mySystem.features.development.enable)
-         "Latest kernel is selected but development features are disabled - consider using 'stable' kernel for better stability";
+    # Validation is now handled by the comprehensive validation module (../validation.nix)
   };
 }

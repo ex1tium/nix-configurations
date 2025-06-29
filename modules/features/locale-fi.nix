@@ -55,7 +55,8 @@ with lib;
 
     # Input method configuration for Finnish
     i18n.inputMethod = {
-      enabled = mkDefault "ibus";
+      enable = mkDefault true;
+      type = mkDefault "ibus";
       ibus.engines = with pkgs.ibus-engines; [
         # Add Finnish input methods if needed
       ];
@@ -151,7 +152,8 @@ with lib;
       # Spell checking dictionaries
       hunspell
       hunspellDicts.en_US
-      hunspellDicts.fi_FI
+      # hunspellDicts.fi_FI  # Package not available, using alternative
+      hunspellDicts.sv_FI
       
       # Additional language tools
       aspell

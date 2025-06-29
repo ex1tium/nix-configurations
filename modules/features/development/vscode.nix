@@ -203,7 +203,9 @@ with lib;
       fira-code
       fira-code-symbols
       jetbrains-mono
-      (nerdfonts.override { fonts = [ "FiraCode" "JetBrainsMono" ]; })
+      # Updated nerdfonts to new package structure
+      nerd-fonts.fira-code
+      nerd-fonts.jetbrains-mono
     ];
   };
 }
