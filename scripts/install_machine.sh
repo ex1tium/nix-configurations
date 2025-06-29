@@ -644,13 +644,31 @@ setup_btrfs() {
   # Wait for device to be ready
   wait_for_device "$dev"
 
-  dry_run_cmd sudo mkfs.btrfs -f -L nixos "$dev"
+  # Create BTRFS filesystem
+  if is_dry_run; then
+    log_info "DRY-RUN: Would create BTRFS filesystem on $dev"
+  else
+    log_info "Creating BTRFS filesystem on $dev"
+    if ! sudo mkfs.btrfs -f -L nixos "$dev"; then
+      log_error "Failed to create BTRFS filesystem on $dev"
+      exit 1
+    fi
+    log_success "BTRFS filesystem created successfully"
+  fi
 
   # Wait for filesystem to be recognized
   sleep 2
 
   # Mount and create subvolumes
-  dry_run_cmd sudo mount "$dev" /mnt
+  if is_dry_run; then
+    log_info "DRY-RUN: Would mount $dev to /mnt"
+  else
+    log_info "Mounting $dev to /mnt"
+    if ! sudo mount "$dev" /mnt; then
+      log_error "Failed to mount $dev to /mnt"
+      exit 1
+    fi
+  fi
 
   # Create subvolumes with explicit error checking
   for sv in @root @home @nix @snapshots; do
@@ -676,19 +694,50 @@ setup_btrfs() {
   done
 
   # Sync and unmount
-  dry_run_cmd sudo sync
-  dry_run_cmd sudo umount /mnt
+  if is_dry_run; then
+    log_info "DRY-RUN: Would sync and unmount /mnt"
+  else
+    log_info "Syncing and unmounting /mnt"
+    sudo sync
+    if ! sudo umount /mnt; then
+      log_error "Failed to unmount /mnt"
+      exit 1
+    fi
+  fi
 
   # Wait for unmount to complete
   sleep 2
 
   # Remount with subvolumes
   log_info "Mounting BTRFS subvolumes..."
-  dry_run_cmd sudo mount -o subvol=@root,compress=zstd "$dev" /mnt
-  dry_run_cmd sudo mkdir -p /mnt/{home,nix,.snapshots,boot}
-  dry_run_cmd sudo mount -o subvol=@home,compress=zstd "$dev" /mnt/home
-  dry_run_cmd sudo mount -o subvol=@nix,compress=zstd  "$dev" /mnt/nix
-  dry_run_cmd sudo mount -o subvol=@snapshots,compress=zstd "$dev" /mnt/.snapshots
+  if is_dry_run; then
+    log_info "DRY-RUN: Would mount BTRFS subvolumes"
+  else
+    # Mount root subvolume
+    if ! sudo mount -o subvol=@root,compress=zstd "$dev" /mnt; then
+      log_error "Failed to mount @root subvolume"
+      exit 1
+    fi
+
+    # Create directories
+    sudo mkdir -p /mnt/{home,nix,.snapshots,boot}
+
+    # Mount other subvolumes
+    if ! sudo mount -o subvol=@home,compress=zstd "$dev" /mnt/home; then
+      log_error "Failed to mount @home subvolume"
+      exit 1
+    fi
+
+    if ! sudo mount -o subvol=@nix,compress=zstd "$dev" /mnt/nix; then
+      log_error "Failed to mount @nix subvolume"
+      exit 1
+    fi
+
+    if ! sudo mount -o subvol=@snapshots,compress=zstd "$dev" /mnt/.snapshots; then
+      log_error "Failed to mount @snapshots subvolume"
+      exit 1
+    fi
+  fi
 
   # Verify all mounts are successful
   if ! is_dry_run; then
@@ -712,21 +761,45 @@ setup_filesystem() {
   if (( ENABLE_ENCRYPTION )); then
      if [[ -n $LUKS_PASSPHRASE_FILE ]]; then
        # Non-interactive mode with passphrase file
-       dry_run_cmd sudo cryptsetup -q luksFormat "$part" --type luks2 --key-file "$LUKS_PASSPHRASE_FILE"
-       dry_run_cmd sudo cryptsetup open "$part" cryptroot --key-file "$LUKS_PASSPHRASE_FILE"
+       if is_dry_run; then
+         log_info "DRY-RUN: Would setup LUKS encryption with passphrase file"
+       else
+         log_info "Setting up LUKS encryption with passphrase file"
+         if ! sudo cryptsetup -q luksFormat "$part" --type luks2 --key-file "$LUKS_PASSPHRASE_FILE"; then
+           log_error "Failed to format LUKS partition"
+           exit 1
+         fi
+         if ! sudo cryptsetup open "$part" cryptroot --key-file "$LUKS_PASSPHRASE_FILE"; then
+           log_error "Failed to open LUKS partition"
+           exit 1
+         fi
+       fi
      else
        # Interactive mode - prompt for passphrase
        if (( NON_INTERACTIVE )); then
          log_error "Non-interactive encryption requires --luks-pass <file>"
          exit 1
        fi
-       dry_run_cmd sudo cryptsetup -q luksFormat "$part" --type luks2
-       dry_run_cmd sudo cryptsetup open "$part" cryptroot
+       if is_dry_run; then
+         log_info "DRY-RUN: Would setup LUKS encryption with interactive passphrase"
+       else
+         log_info "Setting up LUKS encryption (interactive)"
+         if ! sudo cryptsetup -q luksFormat "$part" --type luks2; then
+           log_error "Failed to format LUKS partition"
+           exit 1
+         fi
+         if ! sudo cryptsetup open "$part" cryptroot; then
+           log_error "Failed to open LUKS partition"
+           exit 1
+         fi
+       fi
      fi
      part=/dev/mapper/cryptroot
 
      # Wait for encrypted device
-     wait_for_device "$part"
+     if ! is_dry_run; then
+       wait_for_device "$part"
+     fi
   fi
 
   if [[ $SELECTED_FILESYSTEM == btrfs ]]; then
@@ -734,23 +807,56 @@ setup_filesystem() {
   else
       # Wait for device before formatting
       wait_for_device "$part"
-      dry_run_cmd sudo mkfs.ext4 -F -L nixos "$part"
+
+      # Create EXT4 filesystem
+      if is_dry_run; then
+        log_info "DRY-RUN: Would create EXT4 filesystem on $part"
+      else
+        log_info "Creating EXT4 filesystem on $part"
+        if ! sudo mkfs.ext4 -F -L nixos "$part"; then
+          log_error "Failed to create EXT4 filesystem on $part"
+          exit 1
+        fi
+      fi
 
       # Wait for filesystem to be recognized
       sleep 2
 
-      dry_run_cmd sudo mount "$part" /mnt
-      dry_run_cmd sudo mkdir -p /mnt/boot
+      # Mount root filesystem
+      if is_dry_run; then
+        log_info "DRY-RUN: Would mount $part to /mnt"
+      else
+        if ! sudo mount "$part" /mnt; then
+          log_error "Failed to mount $part to /mnt"
+          exit 1
+        fi
+        sudo mkdir -p /mnt/boot
+      fi
   fi
 
   # Wait for ESP partition and mount
   wait_for_device "$ESP_PARTITION"
-  dry_run_cmd sudo mount "$ESP_PARTITION" /mnt/boot
+  if is_dry_run; then
+    log_info "DRY-RUN: Would mount ESP partition $ESP_PARTITION to /mnt/boot"
+  else
+    log_info "Mounting ESP partition $ESP_PARTITION to /mnt/boot"
+    if ! sudo mount "$ESP_PARTITION" /mnt/boot; then
+      log_error "Failed to mount ESP partition $ESP_PARTITION"
+      exit 1
+    fi
+  fi
 
   if [[ -n $HOME_PARTITION ]]; then
       wait_for_device "$HOME_PARTITION"
-      dry_run_cmd sudo mkdir -p /mnt/home
-      dry_run_cmd sudo mount "$HOME_PARTITION" /mnt/home
+      if is_dry_run; then
+        log_info "DRY-RUN: Would mount home partition $HOME_PARTITION to /mnt/home"
+      else
+        sudo mkdir -p /mnt/home
+        if ! sudo mount "$HOME_PARTITION" /mnt/home; then
+          log_error "Failed to mount home partition $HOME_PARTITION"
+          exit 1
+        fi
+      fi
   fi
 
   # Final verification that all mounts are successful

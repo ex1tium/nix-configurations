@@ -183,7 +183,15 @@ cleanup_temp_files() {
         [[ -f $f ]] && rm -f "$f"
     done
 }
-safe_unmount() { mountpoint -q "$1" && dry_run_cmd sudo umount -R "$1"; }
+safe_unmount() {
+    if mountpoint -q "$1"; then
+        if is_dry_run; then
+            log_info "DRY-RUN: Would unmount $1"
+        else
+            sudo umount -R "$1"
+        fi
+    fi
+}
 
 # -----------------------------------------------------------------------------#
 # 8. Disk and partition helpers
