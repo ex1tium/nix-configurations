@@ -4,13 +4,21 @@ This guide covers installing NixOS using the automated installation script that 
 
 ## 🚀 Quick Start
 
-### Option 1: Automated Script (Recommended)
+### Option 1: Safe Download & Run (Recommended)
 ```bash
 # Boot from NixOS ISO, then run:
-curl -L https://raw.githubusercontent.com/ex1tium/nix-configurations/main/scripts/install-elara.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ex1tium/nix-configurations/main/scripts/install-elara-safe.sh | bash
 ```
 
-### Option 2: Manual Download
+### Option 2: Direct Script (Alternative)
+```bash
+# Download and run directly:
+curl -fsSL https://raw.githubusercontent.com/ex1tium/nix-configurations/main/scripts/install-elara.sh -o install-elara.sh
+chmod +x install-elara.sh
+./install-elara.sh
+```
+
+### Option 3: Manual Clone
 ```bash
 # Boot from NixOS ISO
 nix-shell -p git

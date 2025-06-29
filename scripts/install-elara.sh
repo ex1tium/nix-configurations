@@ -48,19 +48,42 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown flag: $1"; exit 1 ;;
   esac
 done
-[[ $FS_TYPE =~ ^(ext4|btrfs|xfs)$ ]] || { echo "Unsupported --fs=$FS_TYPE"; exit 1; }
-[[ $EUID -ne 0 ]] || { echo "❌  Do NOT run as root"; exit 1; }
+[[ $FS_TYPE =~ ^(ext4|btrfs|xfs)$ ]] || { echo "❌ Unsupported --fs=$FS_TYPE"; exit 1; }
+[[ $EUID -ne 0 ]] || { echo "❌ Do NOT run as root"; exit 1; }
+
+# Verify we're on NixOS
+if [[ ! -f /etc/NIXOS ]]; then
+  echo "❌ This script must be run from a NixOS environment (live ISO or installed system)"
+  echo "   Please boot from a NixOS ISO to run this installer"
+  exit 1
+fi
 
 ###############################################################################
 # Dependency bootstrap – re‑exec inside nix‑shell if tools missing
 ###############################################################################
-NEEDED=(git parted util-linux/sbin/lsblk gptfdisk/sgdisk cryptsetup rsync tar pv)
-MISSING=(); for p in "${NEEDED[@]}"; do bin=${p##*/}; command -v "$bin" &>/dev/null || MISSING+=("$p"); done
+NEEDED=(git parted util-linux gptfdisk cryptsetup rsync tar pv)
+MISSING=(); for p in "${NEEDED[@]}"; do
+  case "$p" in
+    util-linux) bin="lsblk" ;;
+    gptfdisk) bin="sgdisk" ;;
+    *) bin="$p" ;;
+  esac
+  command -v "$bin" &>/dev/null || MISSING+=("$p")
+done
+
 if (( ${#MISSING[@]} )); then
-  echo "🔧  Entering nix‑shell for: ${MISSING[*]#*/}"
-  exec nix-shell -p "${MISSING[@]}" --run "bash \"$0\" \"$@\""
+  echo "🔧  Entering nix‑shell for: ${MISSING[*]}"
+  # Save script to temp file to avoid execution issues
+  SCRIPT_PATH=$(mktemp)
+  cat "$0" > "$SCRIPT_PATH"
+  chmod +x "$SCRIPT_PATH"
+  exec nix-shell -p "${MISSING[@]}" --run "bash \"$SCRIPT_PATH\" \"$@\""
 fi
-for b in git parted lsblk sgdisk cryptsetup nixos-generate-config nixos-install nix rsync tar pv; do command -v "$b" >/dev/null || { echo "Missing $b"; exit 1; }; done
+
+# Verify all required tools are available
+for b in git parted lsblk sgdisk cryptsetup nixos-generate-config nixos-install nix rsync tar pv; do
+  command -v "$b" >/dev/null || { echo "❌ Missing required tool: $b"; exit 1; }
+done
 
 ###############################################################################
 # Helpers
