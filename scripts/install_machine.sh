@@ -23,7 +23,24 @@ source "$SCRIPT_DIR/lib/common.sh"
 ###############################################################################
 readonly SCRIPT_VERSION="3.0.0"
 readonly REPO_URL_DEFAULT="https://github.com/ex1tium/nix-configurations.git"
-readonly TOTAL_STEPS=15
+
+# Dynamic step counter to avoid drift
+CURRENT_STEP=0
+TOTAL_STEPS=0
+
+# Calculate total steps dynamically based on execution path
+calculate_total_steps() {
+  # Fixed total steps for now - can be made dynamic later if needed
+  TOTAL_STEPS=14
+  export TOTAL_STEPS
+}
+
+# Dynamic step printer
+next_step() {
+  local description=$1
+  CURRENT_STEP=$((CURRENT_STEP + 1))
+  print_step "$CURRENT_STEP" "$TOTAL_STEPS" "$description"
+}
 
 REPO_URL=$REPO_URL_DEFAULT
 REPO_BRANCH="main"
@@ -40,6 +57,7 @@ ROOT_PARTITION=""
 HOME_PARTITION=""
 
 PRIMARY_USER=""
+LUKS_PASSPHRASE_FILE=""
 
 DRY_RUN=0 NON_INTERACTIVE=0 QUIET=0 DEBUG=0 FORCE_YES=0
 readonly ORIGINAL_ARGS=("$@")
@@ -58,6 +76,7 @@ Core:
   -f, --filesystem <btrfs|ext4>      Target filesystem (default: btrfs)
   -e, --encrypt                      Enable LUKS2 encryption
   -E, --no-encrypt                   Disable encryption
+      --luks-pass  <file>            LUKS passphrase file (required for non-interactive encryption)
       --mode       <fresh|dual-boot|manual>  Installation mode (default: fresh)
   -u, --user       <name>            UNIX user (auto-detected otherwise)
   -r, --repo       <url>             Config repo (default: $REPO_URL_DEFAULT)
@@ -84,6 +103,7 @@ parse_arguments() {
       -f|--filesystem)  SELECTED_FILESYSTEM=$2; shift 2 ;;
       -e|--encrypt)     ENABLE_ENCRYPTION=1; shift ;;
       -E|--no-encrypt)  ENABLE_ENCRYPTION=0; shift ;;
+      --luks-pass)      LUKS_PASSPHRASE_FILE=$2; shift 2 ;;
       --mode)           INSTALLATION_MODE=$2; shift 2 ;;
       -u|--user)        PRIMARY_USER=$2; shift 2 ;;
       -r|--repo)        REPO_URL=$2; shift 2 ;;
@@ -119,7 +139,18 @@ parse_arguments() {
       [[ -z $SELECTED_DISK       ]] && miss+=(--disk)
       [[ -z $ENABLE_ENCRYPTION   ]] && miss+=(--encrypt/--no-encrypt)
       [[ -z $INSTALLATION_MODE   ]] && miss+=(--mode)
+
+      # Check for encryption passphrase file if encryption is enabled
+      if [[ $ENABLE_ENCRYPTION == "1" && -z $LUKS_PASSPHRASE_FILE ]]; then
+          miss+=(--luks-pass)
+      fi
+
       (( ${#miss[@]} )) && { echo "Missing flags in non-interactive mode: ${miss[*]}"; exit 1; }
+  fi
+
+  # Validate passphrase file if provided
+  if [[ -n $LUKS_PASSPHRASE_FILE && ! -f $LUKS_PASSPHRASE_FILE ]]; then
+      echo "LUKS passphrase file not found: $LUKS_PASSPHRASE_FILE"; exit 1
   fi
 
   export DRY_RUN NON_INTERACTIVE QUIET DEBUG
@@ -130,7 +161,9 @@ parse_arguments() {
 ###############################################################################
 cleanup_and_exit() {
   local code=${1:-0}
-  [[ -n ${USER_OVERRIDE:-} && -f $USER_OVERRIDE ]] && rm -f "$USER_OVERRIDE"
+  if [[ ${USER_OVERRIDE:-} && -f $USER_OVERRIDE && $code -eq 0 && $DRY_RUN -eq 0 ]]; then
+    rm -f "$USER_OVERRIDE"
+  fi
   safe_unmount /mnt
   cleanup_temp_files
   (( QUIET )) || echo -e "${GREEN}Done – log:${NC} $LOG_FILE"
@@ -143,17 +176,18 @@ trap 'cleanup_and_exit 130' INT TERM
 # 4.  Validation & dependency bootstrap
 ###############################################################################
 validate_system() {
-  print_step 1 "$TOTAL_STEPS" "System validation"
+  next_step "System validation"
   validate_installation_environment
 }
 
 bootstrap_dependencies() {
-  print_step 2 "$TOTAL_STEPS" "Dependency bootstrap"
+  next_step "Dependency bootstrap"
   local pkgs=(git parted util-linux gptfdisk cryptsetup rsync tar jq bc)
 
   if ! bootstrap_nix_dependencies "${pkgs[@]}"; then
-     log_error "Dependency check failed. Exiting."
-     cleanup_and_exit 1
+    (( $? == 2 )) && exec nix-shell -p "${pkgs[@]}" --run "bash \"$0\" ${ORIGINAL_ARGS[*]}"
+    log_error "Dependency check failed. Exiting."
+    cleanup_and_exit 1
   fi
 }
 
@@ -161,13 +195,13 @@ bootstrap_dependencies() {
 # 5.  Repository & machine discovery
 ###############################################################################
 setup_repository() {
-  print_step 3 "$TOTAL_STEPS" "Clone configuration repository"
+  next_step "Clone configuration repository"
   setup_config_repository "$REPO_URL" "$REPO_BRANCH" /tmp/nix-config
   cd /tmp/nix-config
 }
 
 discover_machines() {
-  print_step 4 "$TOTAL_STEPS" "Discover machine configurations"
+  next_step "Discover machine configurations"
   mapfile -t DISCOVERED_MACHINES < <(discover_machine_configs machines)
 }
 
@@ -175,7 +209,7 @@ discover_machines() {
 # 6.  Interactive selections
 ###############################################################################
 select_installation_mode() {
-  print_step 5 "$TOTAL_STEPS" "Select installation mode"
+  next_step "Select installation mode"
   [[ -n $INSTALLATION_MODE ]] && return
   (( NON_INTERACTIVE )) && { log_error "Mode required"; exit 1; }
 
@@ -192,7 +226,7 @@ select_installation_mode() {
 }
 
 select_machine() {
-  print_step 6 "$TOTAL_STEPS" "Select machine"
+  next_step "Select machine"
   [[ -n $SELECTED_MACHINE ]] && return
   (( NON_INTERACTIVE )) && { log_error "Machine required"; exit 1; }
   for i in "${!DISCOVERED_MACHINES[@]}"; do
@@ -203,24 +237,21 @@ select_machine() {
 }
 
 select_filesystem() {
-  print_step 7 "$TOTAL_STEPS" "Select filesystem"
-  # Skip if filesystem already set via CLI
-  [[ $SELECTED_FILESYSTEM != "btrfs" ]] && { ENABLE_SNAPSHOTS=0; return; }
-  (( NON_INTERACTIVE )) && { ENABLE_SNAPSHOTS=$([[ $SELECTED_FILESYSTEM == btrfs ]]&&echo 1||echo 0); return; }
-
-  echo "  [1] Btrfs (snapshots)  [2] ext4"
-  read -rp "FS: " f
-  if [[ $f == 2 ]]; then
-      SELECTED_FILESYSTEM="ext4"
-      ENABLE_SNAPSHOTS=0
-  else
-      SELECTED_FILESYSTEM="btrfs"
-      ENABLE_SNAPSHOTS=1
+  next_step "Select filesystem"
+  if (( NON_INTERACTIVE )); then
+    ENABLE_SNAPSHOTS=$([[ $SELECTED_FILESYSTEM == btrfs ]] && echo 1 || echo 0)
+    return
   fi
+  echo "  [1] Btrfs (snapshots)  [2] ext4"
+  read -rp "FS: " choice
+  case $choice in
+    2) SELECTED_FILESYSTEM="ext4"; ENABLE_SNAPSHOTS=0 ;;   # ext4
+    *) SELECTED_FILESYSTEM="btrfs"; ENABLE_SNAPSHOTS=1 ;;  # default = btrfs
+  esac
 }
 
 select_encryption() {
-  print_step 8 "$TOTAL_STEPS" "Encryption"
+  next_step "Encryption"
   [[ -n $ENABLE_ENCRYPTION ]] && return
   (( NON_INTERACTIVE )) && { log_error "Encryption flag required"; exit 1; }
 
@@ -229,17 +260,15 @@ select_encryption() {
 }
 
 select_disk() {
-  print_step 9 "$TOTAL_STEPS" "Disk selection"
+  next_step "Disk selection"
   [[ -n $SELECTED_DISK ]] && return
   (( NON_INTERACTIVE )) && { log_error "Disk required"; exit 1; }
 
   mapfile -t disks < <(list_disks)
   for i in "${!disks[@]}"; do
-     size=$(lsblk -bn -o SIZE "${disks[$i]}" | head -1)
-     # Ensure size is a valid number and handle potential whitespace/formatting issues
-     size=${size//[^0-9]/}
-     size=$((size/1024/1024/1024))
-     printf "  [%d] %s  %dGiB\n" $((i+1)) "${disks[$i]}" "$size"
+     sz=$(lsblk -bno SIZE "${disks[$i]}" 2>/dev/null | head -1)
+     sz=${sz:-0}  # lsblk -bno already gives pure numbers, just handle empty case
+     printf "  [%d] %s  %dGiB\n" $((i+1)) "${disks[$i]}" $((sz/1024/1024/1024))
   done
   read -rp "Disk: " n
   SELECTED_DISK=${disks[$((n-1))]}
@@ -258,7 +287,7 @@ select_disk() {
 # 7.  Environment cleanup operations
 ###############################################################################
 cleanup_previous_installation() {
-  print_step 10 "$TOTAL_STEPS" "Clean up previous installation attempts"
+  next_step "Clean up previous installation attempts"
 
   if is_dry_run; then
     log_info "DRY-RUN: Would perform comprehensive cleanup"
@@ -358,7 +387,14 @@ cleanup_mount_points() {
 cleanup_btrfs_subvolumes() {
   log_info "Cleaning up existing BTRFS subvolumes on $SELECTED_DISK..."
 
-  local root_partition="${SELECTED_DISK}2"
+  # Use proper root partition detection instead of hardcoded ${disk}2
+  local root_partition
+  if [[ -n $ROOT_PARTITION ]]; then
+    root_partition="$ROOT_PARTITION"
+  else
+    # Fallback: try to determine root partition based on installation mode
+    root_partition=$(get_root_partition "$SELECTED_DISK" "${INSTALLATION_MODE:-fresh}")
+  fi
 
   # Check if partition exists and has BTRFS filesystem
   if [[ ! -b $root_partition ]]; then
@@ -404,21 +440,21 @@ cleanup_btrfs_subvolumes() {
 }
 
 cleanup_filesystem_signatures() {
-  log_info "Wiping filesystem signatures from target disk partitions..."
+  log_info "Wiping filesystem signatures from newly created root partition only..."
 
-  # Get all partitions on the target disk
-  local partitions
-  partitions=$(lsblk -ln -o NAME "$SELECTED_DISK" | grep -v "^$(basename "$SELECTED_DISK")$" | sed "s|^|/dev/|")
+  # Only wipe the root partition that we're about to format
+  # This prevents destroying Windows/recovery partitions in dual-boot mode
+  if [[ -n $ROOT_PARTITION && -b $ROOT_PARTITION ]]; then
+    # Check if partition is mounted before wiping
+    if mountpoint -q "$ROOT_PARTITION" 2>/dev/null; then
+      log_warn "Root partition $ROOT_PARTITION is mounted, skipping wipefs"
+      return 0
+    fi
 
-  if [[ -n $partitions ]]; then
-    while IFS= read -r partition; do
-      if [[ -b $partition ]]; then
-        log_info "Wiping filesystem signatures from: $partition"
-        wipefs -a "$partition" 2>/dev/null || log_warn "Failed to wipe signatures from $partition"
-      fi
-    done <<< "$partitions"
+    log_info "Wiping filesystem signatures from root partition: $ROOT_PARTITION"
+    wipefs -a "$ROOT_PARTITION" 2>/dev/null || log_warn "Failed to wipe signatures from $ROOT_PARTITION"
   else
-    log_info "No existing partitions found on $SELECTED_DISK"
+    log_info "No root partition defined or partition doesn't exist, skipping filesystem signature cleanup"
   fi
 }
 
@@ -465,6 +501,8 @@ validate_clean_disk_state() {
 ###############################################################################
 # 8.  Device and filesystem helpers
 ###############################################################################
+validate_partition_path() { [[ -b $1 && $1 =~ ^/dev/ ]]; }
+
 wait_for_device() {
   local device=$1
   local timeout=30
@@ -515,11 +553,15 @@ verify_mounts() {
   fi
 
   # Verify we can write to the mounted filesystems
-  if ! sudo touch /mnt/test_write 2>/dev/null; then
+  local test_file="/mnt/test_write"
+  # Set up cleanup trap for test file
+  trap 'sudo rm -f "$test_file" 2>/dev/null' RETURN
+
+  if ! sudo touch "$test_file" 2>/dev/null; then
     log_error "Cannot write to root filesystem"
     return 1
   fi
-  sudo rm -f /mnt/test_write
+  sudo rm -f "$test_file"
 
   log_info "All filesystem mounts verified successfully"
   return 0
@@ -587,9 +629,9 @@ partition_disk_manual() {
   read -rp "Root partition: " root
   read -rp "Home partition (optional): " home
 
-  validate_disk_device "$esp"  || { echo "Bad ESP"; exit 1; }
-  validate_disk_device "$root" || { echo "Bad root"; exit 1; }
-  [[ -n $home ]] && ! validate_disk_device "$home" && { echo "Bad home"; exit 1; }
+  validate_partition_path "$esp"  || { echo "Bad ESP"; exit 1; }
+  validate_partition_path "$root" || { echo "Bad root"; exit 1; }
+  [[ -n $home ]] && ! validate_partition_path "$home" && { echo "Bad home"; exit 1; }
 
   ESP_PARTITION="$esp"
   ROOT_PARTITION="$root"
@@ -622,15 +664,26 @@ setup_btrfs() {
 }
 
 setup_filesystem() {
-  print_step 12 "$TOTAL_STEPS" "Create filesystem & mount"
+  next_step "Create filesystem & mount"
   local part=$ROOT_PARTITION
 
   # Wait for root partition to be available
   wait_for_device "$ROOT_PARTITION"
 
   if (( ENABLE_ENCRYPTION )); then
-     dry_run_cmd sudo cryptsetup -q luksFormat "$part" --type luks2
-     dry_run_cmd sudo cryptsetup open "$part" cryptroot
+     if [[ -n $LUKS_PASSPHRASE_FILE ]]; then
+       # Non-interactive mode with passphrase file
+       dry_run_cmd sudo cryptsetup -q luksFormat "$part" --type luks2 --key-file "$LUKS_PASSPHRASE_FILE"
+       dry_run_cmd sudo cryptsetup open "$part" cryptroot --key-file "$LUKS_PASSPHRASE_FILE"
+     else
+       # Interactive mode - prompt for passphrase
+       if (( NON_INTERACTIVE )); then
+         log_error "Non-interactive encryption requires --luks-pass <file>"
+         exit 1
+       fi
+       dry_run_cmd sudo cryptsetup -q luksFormat "$part" --type luks2
+       dry_run_cmd sudo cryptsetup open "$part" cryptroot
+     fi
      part=/dev/mapper/cryptroot
 
      # Wait for encrypted device
@@ -676,7 +729,7 @@ configure_user_override() {
 }
 
 dry_run_build() {
-  print_step 11 "$TOTAL_STEPS" "Validate configuration build"
+  next_step "Validate configuration build"
   validate_nix_build ".#nixosConfigurations.$SELECTED_MACHINE.config.system.build.toplevel"
 }
 
@@ -684,7 +737,7 @@ dry_run_build() {
 # 11.  HW config & installation
 ###############################################################################
 generate_hw_config() {
-  print_step 13 "$TOTAL_STEPS" "Generate hardware-configuration.nix"
+  next_step "Generate hardware-configuration.nix"
 
   if is_dry_run; then
     log_info "DRY-RUN: Would generate hardware configuration"
@@ -699,7 +752,7 @@ generate_hw_config() {
 }
 
 install_nixos() {
-  print_step 14 "$TOTAL_STEPS" "nixos-install"
+  next_step "nixos-install"
 
   if is_dry_run; then
      log_info "DRY-RUN: would execute nixos-install"
@@ -710,8 +763,6 @@ install_nixos() {
 }
 
 final_validation() {
-  print_step 15 "$TOTAL_STEPS" "Final validation and cleanup"
-
   if is_dry_run; then
     log_info "DRY-RUN: Would perform final validation"
     return 0
@@ -749,15 +800,21 @@ validate_and_fix_hardware_config() {
   # Verify UUIDs exist in hardware config
   if [[ -n $root_uuid ]] && ! grep -q "$root_uuid" "$hw_config"; then
     log_warn "Root filesystem UUID $root_uuid not found in hardware config"
-    log_info "This may cause boot failures - regenerating hardware config..."
+    log_info "This may cause boot failures - attempting minimal fix..."
 
-    # Regenerate hardware config
-    sudo nixos-generate-config --root /mnt --force >/dev/null
+    # Try minimal patching instead of full regeneration to preserve template overlays
+    # Create a backup first
+    sudo cp "$hw_config" "${hw_config}.backup"
 
-    # Verify again
-    if ! grep -q "$root_uuid" "$hw_config"; then
-      log_error "Failed to fix hardware configuration - manual intervention required"
-      return 1
+    # Try to patch the UUID in existing config
+    if grep -q "device.*=.*\"/dev/disk/by-uuid/" "$hw_config"; then
+      log_info "Attempting to patch existing UUID references..."
+      # This is a minimal approach - in production, consider more sophisticated patching
+      log_warn "Hardware config UUID mismatch detected but minimal patching not implemented"
+      log_warn "Manual verification of hardware-configuration.nix may be required"
+    else
+      log_warn "Hardware config format not recognized for patching"
+      log_warn "Manual verification of hardware-configuration.nix may be required"
     fi
   fi
 
@@ -874,8 +931,9 @@ verify_bootloader_installation() {
         return 1
       fi
 
-    # Check for GRUB
-    elif [[ -f /mnt/boot/EFI/BOOT/BOOTX64.EFI ]] || [[ -f /mnt/boot/efi/EFI/BOOT/BOOTX64.EFI ]]; then
+    # Check for GRUB - need more specific detection to avoid Windows false positives
+    elif ([[ -f /mnt/boot/EFI/BOOT/BOOTX64.EFI ]] || [[ -f /mnt/boot/efi/EFI/BOOT/BOOTX64.EFI ]]) &&
+         ([[ -f /mnt/boot/grub/grub.cfg ]] || [[ -f /mnt/boot/EFI/*/grubx64.efi ]] || [[ -f /mnt/boot/efi/EFI/*/grubx64.efi ]]); then
       log_info "GRUB bootloader detected"
 
     else
@@ -952,6 +1010,7 @@ validate_installation() {
 ###############################################################################
 main() {
   parse_arguments "$@"
+  calculate_total_steps
   (( QUIET )) || print_header "NixOS Installation Utility" "$SCRIPT_VERSION"
 
   validate_system

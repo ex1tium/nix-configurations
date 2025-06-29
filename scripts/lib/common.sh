@@ -63,15 +63,39 @@ print_header() {                    # print_header [title] [version]
     (( QUIET )) && return
     local title=${1:-NixOS Installation Utility}
     local ver=${2:-}
+
+    # Box dimensions
+    local box_width=80
+    local inner_width=$((box_width - 2))  # Account for side borders
+
+    # Calculate padding for centering
+    local title_len=${#title}
+    local title_padding=$(( (inner_width - title_len) / 2 ))
+
+    local ver_text=""
+    local ver_padding=0
+    if [[ -n $ver ]]; then
+        ver_text="v$ver"
+        local ver_len=${#ver_text}
+        ver_padding=$(( (inner_width - ver_len) / 2 ))
+    fi
+
     clear
-    printf '%s╔%0.s═%s╗%s\n' "$PURPLE" {1..78} "$NC" ''
-    printf '%s║%*s%s%*s║%s\n' \
-           "$PURPLE" $(( (78-${#title})/2 )) '' "$title" \
-           $(( (79-${#title})/2 )) '' "$NC"
-    [[ -n $ver ]] && printf '%s║%*sv%s%*s║%s\n' \
-           "$PURPLE" $(( (78-${#ver}-1)/2 )) '' "$ver" \
-           $(( (79-${#ver}-1)/2 )) '' "$NC"
-    printf '%s╚%0.s═%s╝%s\n\n' "$PURPLE" {1..78} "$NC" ''
+    echo
+    # Use ASCII box drawing characters for better compatibility
+    echo "${PURPLE}+$(printf '%*s' "$((box_width-2))" '' | tr ' ' '-')+"
+    echo "${PURPLE}|$(printf '%*s' "$inner_width" '')|"
+    echo "${PURPLE}|$(printf '%*s' "$title_padding" '')${WHITE}${title}${PURPLE}$(printf '%*s' "$((inner_width - title_padding - title_len))" '')|"
+
+    if [[ -n $ver ]]; then
+        echo "${PURPLE}|$(printf '%*s' "$ver_padding" '')${CYAN}${ver_text}${PURPLE}$(printf '%*s' "$((inner_width - ver_padding - ${#ver_text}))" '')|"
+    else
+        echo "${PURPLE}|$(printf '%*s' "$inner_width" '')|"
+    fi
+
+    echo "${PURPLE}|$(printf '%*s' "$inner_width" '')|"
+    echo "${PURPLE}+$(printf '%*s' "$((box_width-2))" '' | tr ' ' '-')+${NC}"
+    echo
 }
 
 print_step() {                      # print_step <n> <total> <desc>
