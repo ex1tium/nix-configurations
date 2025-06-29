@@ -104,6 +104,7 @@
   # Force X11 for SDDM/KDE to avoid Wayland instability in VMs
   # Force SDDM to use X11 and software rendering in this VM
   services.displayManager.sddm = {
+    package = pkgs.sddm-qt5;
     wayland.enable = lib.mkForce false;
     settings = {
       General = {
