@@ -48,18 +48,19 @@
       # Enhanced hardware detection debug mode for testing/validation
       debug = true;
 
-      # Enable microcode updates
-      cpu.intel.updateMicrocode = true;
-
-      # Performance optimizations for VM
-      boot = {
-        kernelParams = [
-          "elevator=noop" # Better for VMs
-          "intel_idle.max_cstate=1" # Better VM performance
-        ];
-        loader.timeout = 1;
-      };
     };
+  };
+
+  # Enable microcode updates for the CPU
+  hardware.cpu.intel.updateMicrocode = true;
+
+  # Performance optimizations for VM
+  boot = {
+    kernelParams = [
+      "elevator=noop" # Better for VMs
+      "intel_idle.max_cstate=1" # Better VM performance
+    ];
+    loader.timeout = 1;
   };
 
   # Machine-specific Nix settings

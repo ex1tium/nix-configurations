@@ -175,7 +175,9 @@ with lib;
     cpuGovernor = "ondemand";        # Balanced CPU governor
     
     # GPU defaults - AUTO-DETECTED by hardware compatibility module
-    gpu = "auto";                    # Auto-detected by hardware compatibility module
+    gpu = {
+      detection = "auto";            # Auto-detected by hardware compatibility module
+    };
     enableOpenGL = true;             # OpenGL support enabled
     enable32BitOpenGL = true;        # 32-bit OpenGL for compatibility
     
