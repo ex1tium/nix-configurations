@@ -127,17 +127,46 @@ mount_filesystem() {
     log_info "Mounting @root subvolume..."
     if ! mount -o subvol=@root,compress=zstd "$ROOT_DEVICE" /mnt; then
         log_error "Failed to mount @root subvolume"
-        log_info "Attempting to mount without subvolume option..."
-        mount "$ROOT_DEVICE" /mnt
-        
-        # Check if subvolumes exist
-        if ! btrfs subvolume show /mnt/@root &>/dev/null; then
-            log_error "@root subvolume does not exist. Creating subvolumes..."
-            create_missing_subvolumes
-            umount /mnt
-            mount -o subvol=@root,compress=zstd "$ROOT_DEVICE" /mnt
+        log_info "Attempting to mount without subvolume option to diagnose..."
+
+        if mount "$ROOT_DEVICE" /mnt; then
+            # Check if subvolumes exist
+            log_info "Checking for existing subvolumes..."
+            btrfs subvolume list /mnt 2>/dev/null || log_warn "No subvolumes found"
+
+            if ! btrfs subvolume show /mnt/@root &>/dev/null; then
+                log_error "@root subvolume does not exist. The installation is incomplete."
+                log_info "This suggests the installation failed during BTRFS subvolume creation."
+                log_info "You may need to reinstall NixOS completely."
+
+                # Attempt to create subvolumes as a last resort
+                log_warn "Attempting to create missing subvolumes..."
+                create_missing_subvolumes
+
+                # Try to migrate existing files if they exist in root
+                if [[ -d /mnt/etc ]] && [[ ! -d /mnt/@root/etc ]]; then
+                    log_info "Found system files in root, attempting migration..."
+                    migrate_files_to_subvolumes
+                fi
+
+                umount /mnt
+                if ! mount -o subvol=@root,compress=zstd "$ROOT_DEVICE" /mnt; then
+                    log_error "Still cannot mount @root subvolume after creation"
+                    exit 1
+                fi
+            else
+                log_error "@root subvolume exists but mount failed - checking mount options"
+                umount /mnt
+                # Try without compression first
+                if mount -o subvol=@root "$ROOT_DEVICE" /mnt; then
+                    log_warn "Mounted without compression - there may be filesystem issues"
+                else
+                    log_error "Cannot mount @root subvolume even without compression"
+                    exit 1
+                fi
+            fi
         else
-            log_error "@root subvolume exists but mount failed"
+            log_error "Cannot mount $ROOT_DEVICE at all - filesystem may be corrupted"
             exit 1
         fi
     fi
@@ -159,19 +188,71 @@ mount_filesystem() {
 
 create_missing_subvolumes() {
     log_warn "Creating missing BTRFS subvolumes..."
-    
+
     for sv in @root @home @nix @snapshots; do
         if ! btrfs subvolume show "/mnt/$sv" &>/dev/null; then
             log_info "Creating subvolume: $sv"
-            btrfs subvolume create "/mnt/$sv"
+            if ! btrfs subvolume create "/mnt/$sv"; then
+                log_error "Failed to create subvolume: $sv"
+                return 1
+            fi
+        else
+            log_info "Subvolume $sv already exists"
         fi
     done
-    
-    # If @root was missing, we need to copy existing files
-    if [[ -d /mnt/etc ]] && ! btrfs subvolume show /mnt/@root &>/dev/null; then
-        log_info "Moving existing files to @root subvolume..."
-        # This is a complex operation - for now, just create empty subvolume
-        log_warn "Manual file migration may be required"
+
+    log_success "BTRFS subvolumes created successfully"
+}
+
+migrate_files_to_subvolumes() {
+    log_warn "Attempting to migrate existing files to @root subvolume..."
+
+    # This is a risky operation - create backup first
+    if [[ -d /mnt/etc ]]; then
+        log_info "Found system files in BTRFS root, migrating to @root subvolume..."
+
+        # Create a list of directories to migrate (exclude subvolume directories)
+        local dirs_to_migrate=()
+        for item in /mnt/*; do
+            if [[ -d "$item" ]] && [[ "$(basename "$item")" != @* ]]; then
+                dirs_to_migrate+=("$(basename "$item")")
+            fi
+        done
+
+        # Also migrate files in root
+        local files_to_migrate=()
+        for item in /mnt/*; do
+            if [[ -f "$item" ]]; then
+                files_to_migrate+=("$(basename "$item")")
+            fi
+        done
+
+        if [[ ${#dirs_to_migrate[@]} -gt 0 ]] || [[ ${#files_to_migrate[@]} -gt 0 ]]; then
+            log_info "Migrating directories: ${dirs_to_migrate[*]}"
+            log_info "Migrating files: ${files_to_migrate[*]}"
+
+            # Move directories
+            for dir in "${dirs_to_migrate[@]}"; do
+                if [[ -d "/mnt/$dir" ]]; then
+                    log_info "Moving directory: $dir"
+                    mv "/mnt/$dir" "/mnt/@root/" || log_warn "Failed to move $dir"
+                fi
+            done
+
+            # Move files
+            for file in "${files_to_migrate[@]}"; do
+                if [[ -f "/mnt/$file" ]]; then
+                    log_info "Moving file: $file"
+                    mv "/mnt/$file" "/mnt/@root/" || log_warn "Failed to move $file"
+                fi
+            done
+
+            log_success "File migration completed"
+        else
+            log_info "No files to migrate"
+        fi
+    else
+        log_info "No system files found to migrate"
     fi
 }
 
