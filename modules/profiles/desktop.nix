@@ -50,7 +50,7 @@ with lib;
       kernel = mkDefault "latest"; # Latest kernel for better hardware support
       enableVirtualization = mkDefault false;
       enableRemoteDesktop = mkDefault true;
-      gpu = mkDefault "none"; # Auto-detect or set per machine
+      # GPU auto-detection handled by base profile
     };
   };
 

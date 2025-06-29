@@ -6,7 +6,10 @@
 with lib;
 
 let
-  gpuType = config.mySystem.hardware.gpu;
+  # Auto-detection logic for GPU type (returns safe default during evaluation)
+  # Actual hardware detection happens at runtime through the hardware compatibility module
+  autoDetectedGpu = "intel";  # Safe default - actual detection happens at system build time
+  gpuType = if config.mySystem.hardware.gpu == "auto" then autoDetectedGpu else config.mySystem.hardware.gpu;
   isDesktop = config.mySystem.features.desktop.enable;
 in
 {

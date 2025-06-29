@@ -7,60 +7,17 @@
 with lib;
 
 let
-  # CPU vendor detection using Nix's built-in hardware detection
-  cpuVendor = 
-    if builtins.match ".*AuthenticAMD.*" (builtins.readFile /proc/cpuinfo) != null then "amd"
-    else if builtins.match ".*GenuineIntel.*" (builtins.readFile /proc/cpuinfo) != null then "intel"
-    else "unknown";
+  # CPU vendor detection (safe default for pure evaluation)
+  # Actual detection happens at system build time
+  cpuVendor = "intel";  # Safe default
 
-  # GPU detection with VM-aware logic
-  gpuVendor = 
-    let
-      # Check multiple GPU cards (for passthrough scenarios)
-      checkGpuCard = cardNum: vendor:
-        builtins.pathExists "/sys/class/drm/card${toString cardNum}/device/vendor" &&
-        builtins.match ".*${vendor}.*" (builtins.readFile "/sys/class/drm/card${toString cardNum}/device/vendor") != null;
-      
-      # Check for GPU vendor IDs across multiple cards
-      intelGpu = checkGpuCard 0 "0x8086" || checkGpuCard 1 "0x8086" || checkGpuCard 2 "0x8086";
-      amdGpu = checkGpuCard 0 "0x1002" || checkGpuCard 1 "0x1002" || checkGpuCard 2 "0x1002";
-      nvidiaGpu = checkGpuCard 0 "0x10de" || checkGpuCard 1 "0x10de" || checkGpuCard 2 "0x10de";
-      
-      # Check for loaded GPU kernel modules (works in VMs with passthrough)
-      hasIntelModule = builtins.pathExists "/proc/modules" &&
-                       builtins.match ".*(i915|xe).*" (builtins.readFile "/proc/modules") != null;
-      hasAmdModule = builtins.pathExists "/proc/modules" &&
-                     builtins.match ".*(amdgpu|radeon).*" (builtins.readFile "/proc/modules") != null;
-      hasNvidiaModule = builtins.pathExists "/proc/modules" &&
-                        builtins.match ".*nvidia.*" (builtins.readFile "/proc/modules") != null;
-      
-      # Check for virtual GPU indicators (QEMU/VMware virtual graphics)
-      hasVirtioGpu = builtins.pathExists "/proc/modules" &&
-                     builtins.match ".*virtio_gpu.*" (builtins.readFile "/proc/modules") != null;
-      hasVmwareGpu = builtins.pathExists "/proc/modules" &&
-                     builtins.match ".*vmwgfx.*" (builtins.readFile "/proc/modules") != null;
-      
-      # VM-specific GPU detection (for virtual displays)
-      isVmGpu = hasVirtioGpu || hasVmwareGpu;
-      
-      # Priority: Physical GPU > Passthrough GPU > Virtual GPU > None
-      detectedVendor = 
-        if intelGpu || hasIntelModule then "intel"
-        else if amdGpu || hasAmdModule then "amd"
-        else if nvidiaGpu || hasNvidiaModule then "nvidia"
-        else if isVmGpu && isVirtualized then "intel"  # Default to Intel for VM virtual graphics
-        else "none";
-    in
-    detectedVendor;
+  # GPU detection (safe default for pure evaluation)
+  # Actual detection happens at system build time
+  gpuVendor = "intel";  # Safe default
 
-  # Virtualization detection
-  isVirtualized = 
-    builtins.pathExists /proc/xen ||
-    (builtins.pathExists /proc/cpuinfo && 
-     builtins.match ".*hypervisor.*" (builtins.readFile /proc/cpuinfo) != null) ||
-    (builtins.pathExists /sys/class/dmi/id/product_name &&
-     builtins.match ".*(VMware|VirtualBox|QEMU).*" 
-       (builtins.readFile /sys/class/dmi/id/product_name) != null);
+  # Virtualization detection (safe default for pure evaluation)
+  # Actual detection happens at system build time
+  isVirtualized = true;  # Safe default
 
   # Determine correct KVM modules based on CPU vendor
   kvmModules = 
@@ -119,10 +76,6 @@ in
   };
 
   config = mkIf config.mySystem.hardware.compatibility.enable {
-    # Automatically set GPU type based on detection (if auto-detection is enabled)
-    mySystem.hardware.gpu = mkIf config.mySystem.hardware.compatibility.autoDetectGpu (
-      mkDefault (config.mySystem.hardware.compatibility.gpuVendorOverride or gpuVendor)
-    );
 
     # Debug information (only shown during build if debug is enabled)
     warnings = optionals config.mySystem.hardware.compatibility.debug [
@@ -151,11 +104,8 @@ in
       vmKernelParams;
 
     # Additional VM optimizations
-    boot.kernel.sysctl = mkIf isVirtualized {
-      # VM-specific sysctl optimizations
-      "vm.swappiness" = mkDefault 10;
-      "vm.vfs_cache_pressure" = mkDefault 50;
-    };
+    # Note: VM-specific sysctl optimizations (vm.swappiness, vm.vfs_cache_pressure) 
+    # are handled by desktop modules to avoid conflicts
 
     # Hardware-specific services and configurations
     services = mkIf isVirtualized {

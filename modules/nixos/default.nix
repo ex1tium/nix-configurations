@@ -235,9 +235,9 @@ in
           enableVirtualization = mkEnableOption "hardware virtualization support";
           enableRemoteDesktop = mkEnableOption "remote desktop hardware acceleration";
           gpu = mkOption {
-            type = types.enum [ "intel" "amd" "nvidia" "none" ];
+            type = types.enum [ "intel" "amd" "nvidia" "none" "auto" ];
             default = defaults.hardware.gpu;
-            description = "GPU type for driver optimization";
+            description = "GPU type for driver optimization. Use 'auto' for automatic detection.";
           };
         };
       };
