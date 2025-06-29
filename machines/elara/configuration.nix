@@ -101,20 +101,21 @@
   # Xorg Server configuration for VM stability
   services.xserver.videoDrivers = [ "modesetting" ];
 
-  # Force X11 for SDDM/KDE to avoid Wayland instability in VMs
-  # Force SDDM to use X11 and software rendering in this VM
-  services.displayManager.sddm = {
-    package = lib.mkForce pkgs.libsForQt5.sddm;
-    wayland.enable = lib.mkForce false;
-    settings = {
-      General = {
-        DisplayServer = "x11";
-        # Force software GL inside the greeter environment
-        GreeterEnvironment = "LIBGL_ALWAYS_SOFTWARE=1,QT_QUICK_BACKEND=software";
+  # Use GDM (Wayland-capable) instead of SDDM to avoid Qt mismatch issues in VMs
+  services.displayManager = {
+    gdm.enable = lib.mkForce false;
+
+    sddm = {
+      enable = true;
+      wayland.enable = true; # allow Wayland greeter
+      settings = {
+        General = {
+          DisplayServer = "wayland";
+          GreeterEnvironment = "LIBGL_ALWAYS_SOFTWARE=1,QT_QUICK_BACKEND=software";
+        };
       };
     };
   };
-
 
   # Machine-specific networking
   networking = {
