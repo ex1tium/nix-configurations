@@ -4,17 +4,10 @@
 
 set -euo pipefail
 
-# Colors for output
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly BLUE='\033[0;34m'
-readonly NC='\033[0m' # No Color
-
-log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
+# Load common functions for consistent colorful logging
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
 
 # Check if running as root
 if [[ $EUID -ne 0 ]]; then
@@ -29,8 +22,9 @@ if ! command -v nixos-generate-config &> /dev/null; then
 fi
 
 main() {
-    log_info "NixOS Boot Repair Tool"
-    echo "This script will attempt to fix BTRFS subvolume boot issues"
+    print_box "$CYAN" "🔧 NixOS Boot Repair Tool 🔧" \
+        "${WHITE}This script will attempt to fix BTRFS subvolume boot issues" \
+        "${YELLOW}Please ensure you're running from a NixOS live environment"
     echo
 
     # Step 1: Detect the problematic installation
@@ -51,7 +45,10 @@ main() {
     # Step 5: Cleanup
     cleanup_mounts
 
-    log_success "Boot repair completed! Try rebooting now."
+    echo
+    print_box "$GREEN" "✅ BOOT REPAIR COMPLETE! ✅" \
+        "${WHITE}Your NixOS system should now boot properly" \
+        "${CYAN}🚀 Remove the live media and reboot: ${YELLOW}sudo reboot"
 }
 
 diagnose_current_state() {

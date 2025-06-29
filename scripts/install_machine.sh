@@ -213,10 +213,10 @@ select_installation_mode() {
   [[ -n $INSTALLATION_MODE ]] && return
   (( NON_INTERACTIVE )) && { log_error "Mode required"; exit 1; }
 
-  echo "  [1] Fresh  (erase whole disk)"
-  echo "  [2] Dual-boot (reuse free space)"
-  echo "  [3] Manual (you partition yourself)"
-  read -rp "Choose mode [1-3]: " ans
+  echo "  ${CYAN}[1]${NC} 💥 Fresh  (erase whole disk)"
+  echo "  ${CYAN}[2]${NC} 🤝 Dual-boot (reuse free space)"
+  echo "  ${CYAN}[3]${NC} 🛠️  Manual (you partition yourself)"
+  read -rp "${YELLOW}Choose mode [1-3]:${NC} " ans
   case $ans in
      1) INSTALLATION_MODE="fresh" ;;
      2) INSTALLATION_MODE="dual-boot" ;;
@@ -230,9 +230,9 @@ select_machine() {
   [[ -n $SELECTED_MACHINE ]] && return
   (( NON_INTERACTIVE )) && { log_error "Machine required"; exit 1; }
   for i in "${!DISCOVERED_MACHINES[@]}"; do
-      printf "  [%d] %s\n" $((i+1)) "${DISCOVERED_MACHINES[$i]}"
+      printf "  ${CYAN}[%d]${NC} 🖥️  %s\n" $((i+1)) "${DISCOVERED_MACHINES[$i]}"
   done
-  read -rp "Machine: " n
+  read -rp "${YELLOW}Select machine:${NC} " n
   SELECTED_MACHINE=${DISCOVERED_MACHINES[$((n-1))]}
 }
 
@@ -242,8 +242,8 @@ select_filesystem() {
     ENABLE_SNAPSHOTS=$([[ $SELECTED_FILESYSTEM == btrfs ]] && echo 1 || echo 0)
     return
   fi
-  echo "  [1] Btrfs (snapshots)  [2] ext4"
-  read -rp "FS: " choice
+  echo "  ${CYAN}[1]${NC} 🌳 Btrfs (snapshots)  ${CYAN}[2]${NC} 📁 ext4"
+  read -rp "${YELLOW}Filesystem:${NC} " choice
   case $choice in
     2) SELECTED_FILESYSTEM="ext4"; ENABLE_SNAPSHOTS=0 ;;   # ext4
     *) SELECTED_FILESYSTEM="btrfs"; ENABLE_SNAPSHOTS=1 ;;  # default = btrfs
@@ -255,7 +255,7 @@ select_encryption() {
   [[ -n $ENABLE_ENCRYPTION ]] && return
   (( NON_INTERACTIVE )) && { log_error "Encryption flag required"; exit 1; }
 
-  read -rp "Enable LUKS2? [y/N]: " a
+  read -rp "${YELLOW}🔐 Enable LUKS2 encryption? [y/N]:${NC} " a
   ENABLE_ENCRYPTION=$([[ ${a,,} == y* ]] && echo 1 || echo 0)
 }
 
@@ -268,9 +268,9 @@ select_disk() {
   for i in "${!disks[@]}"; do
      sz=$(lsblk -bno SIZE "${disks[$i]}" 2>/dev/null | head -1)
      sz=${sz:-0}  # lsblk -bno already gives pure numbers, just handle empty case
-     printf "  [%d] %s  %dGiB\n" $((i+1)) "${disks[$i]}" $((sz/1024/1024/1024))
+     printf "  ${CYAN}[%d]${NC} 💾 %s  ${GREEN}%dGiB${NC}\n" $((i+1)) "${disks[$i]}" $((sz/1024/1024/1024))
   done
-  read -rp "Disk: " n
+  read -rp "${YELLOW}Select disk:${NC} " n
   SELECTED_DISK=${disks[$((n-1))]}
 
   case $INSTALLATION_MODE in
@@ -648,12 +648,12 @@ setup_btrfs() {
   if is_dry_run; then
     log_info "DRY-RUN: Would create BTRFS filesystem on $dev"
   else
-    log_info "Creating BTRFS filesystem on $dev"
+    log_info "Creating BTRFS filesystem on $dev 🌳"
     if ! sudo mkfs.btrfs -f -L nixos "$dev"; then
       log_error "Failed to create BTRFS filesystem on $dev"
       exit 1
     fi
-    log_success "BTRFS filesystem created successfully"
+    log_success "BTRFS filesystem created successfully! 🎯"
   fi
 
   # Wait for filesystem to be recognized
@@ -689,7 +689,7 @@ setup_btrfs() {
         exit 1
       fi
 
-      log_success "BTRFS subvolume $sv created successfully"
+      log_success "BTRFS subvolume $sv created successfully! 📁✨"
     fi
   done
 
@@ -709,7 +709,7 @@ setup_btrfs() {
   sleep 2
 
   # Remount with subvolumes
-  log_info "Mounting BTRFS subvolumes..."
+  log_info "Mounting BTRFS subvolumes... 🔗"
   if is_dry_run; then
     log_info "DRY-RUN: Would mount BTRFS subvolumes"
   else
@@ -747,7 +747,7 @@ setup_btrfs() {
         exit 1
       fi
     done
-    log_info "All BTRFS subvolumes mounted successfully"
+    log_success "All BTRFS subvolumes mounted successfully! 🎉 Ready to install!"
   fi
 }
 
@@ -916,7 +916,15 @@ final_validation() {
   # Post-installation validation
   validate_installation
 
-  echo -e "${GREEN}🎉 Installation complete – reboot when ready.${NC}"
+  echo
+
+  # Beautiful completion banner using the box helper
+  print_box "$GREEN" "🎉 INSTALLATION COMPLETE! 🎉" \
+    "${WHITE}Your NixOS system is ready! Remove the installation media and reboot." \
+    "" \
+    "${CYAN}🚀 Reboot command: ${YELLOW}sudo reboot"
+
+  echo
 }
 
 ###############################################################################

@@ -33,14 +33,32 @@ fi
 # 2. Logging
 # -----------------------------------------------------------------------------#
 _log() {                             # _log <LEVEL> <msg…>
-    local ts level=$1; shift
+    local ts level=$1 color emoji; shift
     ts=$(date '+%Y-%m-%d %H:%M:%S')
-    printf '[%s] [%s] %s\n' "$ts" "$level" "$*" | tee -a "$LOG_FILE" >&2
+
+    # Set color and emoji based on log level
+    case $level in
+        ERROR)   color=$RED;    emoji="💥" ;;
+        WARN)    color=$YELLOW; emoji="⚠️ " ;;
+        SUCCESS) color=$GREEN;  emoji="✨" ;;
+        INFO)    color=$CYAN;   emoji="🔵" ;;
+        DEBUG)   color=$PURPLE; emoji="🔍" ;;
+        STEP)    color=$BLUE;   emoji="🚀" ;;
+        *)       color=$NC;     emoji="📝" ;;
+    esac
+
+    # Log to file without colors/emojis
+    printf '[%s] [%s] %s\n' "$ts" "$level" "$*" >> "$LOG_FILE"
+
+    # Display with colors and emojis to stderr
+    printf '%s%s [%s]%s %s\n' "$color" "$emoji" "$level" "$NC" "$*" >&2
 }
-log_info()  { _log INFO  "$*"; }
-log_warn()  { _log WARN  "$*"; }
-log_error() { _log ERROR "$*"; }
-log_debug() { [[ $DEBUG == 1 ]] && _log DEBUG "$*"; }
+log_info()    { _log INFO    "$*"; }
+log_warn()    { _log WARN    "$*"; }
+log_error()   { _log ERROR   "$*"; }
+log_success() { _log SUCCESS "$*"; }
+log_step()    { _log STEP    "$*"; }
+log_debug()   { [[ $DEBUG == 1 ]] && _log DEBUG "$*"; }
 
 # -----------------------------------------------------------------------------#
 # 3. User-interaction helpers
@@ -64,44 +82,78 @@ print_header() {                    # print_header [title] [version]
     local title=${1:-NixOS Installation Utility}
     local ver=${2:-}
 
-    # Box dimensions
-    local box_width=80
-    local inner_width=$((box_width - 2))  # Account for side borders
+    # Dynamic box dimensions based on terminal width
+    local term_width=$(get_terminal_width)
+    local box_width=$((term_width > 100 ? 100 : term_width - 4))
+    local inner_width=$((box_width - 2))
 
-    # Calculate padding for centering
-    local title_len=${#title}
-    local title_padding=$(( (inner_width - title_len) / 2 ))
+    # Get appropriate box characters
+    local box_chars=$(get_box_chars)
+    local tl=${box_chars:0:1} hr=${box_chars:1:1} tr=${box_chars:2:1}
+    local vr=${box_chars:3:1} bl=${box_chars:4:1} br=${box_chars:5:1}
 
+    # Prepare title with emojis
+    local title_with_emoji="🚀 ${title} 🚀"
     local ver_text=""
-    local ver_padding=0
     if [[ -n $ver ]]; then
-        ver_text="v$ver"
-        local ver_len=${#ver_text}
-        ver_padding=$(( (inner_width - ver_len) / 2 ))
+        ver_text="✨ v${ver} ✨"
     fi
 
     clear
     echo
-    # Use ASCII box drawing characters for better compatibility
-    echo "${PURPLE}+$(printf '%*s' "$((box_width-2))" '' | tr ' ' '-')+"
-    echo "${PURPLE}|$(printf '%*s' "$inner_width" '')|"
-    echo "${PURPLE}|$(printf '%*s' "$title_padding" '')${WHITE}${title}${PURPLE}$(printf '%*s' "$((inner_width - title_padding - title_len))" '')|"
+    # Beautiful header with proper width calculations
+    echo "${CYAN}${tl}$(printf '%*s' "$((box_width-2))" '' | tr ' ' "${hr}")${tr}${NC}"
+    echo "${CYAN}${vr}$(printf '%*s' "$inner_width" '')${vr}${NC}"
+    echo "${CYAN}${vr}$(center_text "${WHITE}${title_with_emoji}${CYAN}" "$inner_width")${vr}${NC}"
 
-    if [[ -n $ver ]]; then
-        echo "${PURPLE}|$(printf '%*s' "$ver_padding" '')${CYAN}${ver_text}${PURPLE}$(printf '%*s' "$((inner_width - ver_padding - ${#ver_text}))" '')|"
+    if [[ -n $ver_text ]]; then
+        echo "${CYAN}${vr}$(center_text "${YELLOW}${ver_text}${CYAN}" "$inner_width")${vr}${NC}"
     else
-        echo "${PURPLE}|$(printf '%*s' "$inner_width" '')|"
+        echo "${CYAN}${vr}$(printf '%*s' "$inner_width" '')${vr}${NC}"
     fi
 
-    echo "${PURPLE}|$(printf '%*s' "$inner_width" '')|"
-    echo "${PURPLE}+$(printf '%*s' "$((box_width-2))" '' | tr ' ' '-')+${NC}"
+    echo "${CYAN}${vr}$(printf '%*s' "$inner_width" '')${vr}${NC}"
+    echo "${CYAN}${bl}$(printf '%*s' "$((box_width-2))" '' | tr ' ' "${hr}")${br}${NC}"
     echo
 }
 
 print_step() {                      # print_step <n> <total> <desc>
-    (( QUIET )) || printf '\n%s[Step %s/%s]%s %s%s%s\n' \
-        "$CYAN" "$1" "$2" "$NC" "$WHITE" "$3" "$NC"
-    log_info "Step $1/$2: $3"
+    if ! (( QUIET )); then
+        local step_text="Step $1/$2"
+        local desc="$3"
+        local percentage=$(( ($1 * 100) / $2 ))
+
+        # Dynamic width calculation
+        local term_width=$(get_terminal_width)
+        local box_width=$((term_width > 80 ? 80 : term_width - 4))
+        local inner_width=$((box_width - 2))
+
+        # Progress bar calculation (scale to fit available space)
+        local bar_width=20  # Fixed width for consistency
+        local progress=$(( ($1 * bar_width) / $2 ))
+
+        # Get box characters
+        local box_chars=$(get_box_chars)
+        local tl=${box_chars:8:1} hr=${box_chars:7:1} tr=${box_chars:9:1}
+        local vr=${box_chars:6:1} bl=${box_chars:10:1} br=${box_chars:11:1}
+
+        # Progress bar characters (always use ASCII for better compatibility)
+        local filled=$(printf '%*s' "$progress" '' | tr ' ' '#')
+        local empty=$(printf '%*s' "$((bar_width - progress))" '' | tr ' ' '-')
+
+        # Calculate header padding
+        local step_desc="$step_text - $desc"
+        local header_content_width=$(text_width "$step_desc")
+        local header_padding=$((box_width - header_content_width - 6))
+        (( header_padding < 0 )) && header_padding=0
+
+        echo
+        echo -e "${CYAN}${tl}${hr}${hr} ${WHITE}${step_text}${CYAN} ${hr} ${WHITE}${desc}${CYAN} $(printf '%*s' "$header_padding" '' | tr ' ' "${hr}")${tr}${NC}"
+        echo -e "${CYAN}${vr} ${WHITE}🚀 [${GREEN}${filled}${empty}${WHITE}] ${percentage}%$(printf '%*s' "$((inner_width - 30))" '') ${CYAN}${vr}${NC}"
+        echo -e "${CYAN}${bl}$(printf '%*s' "$((box_width-2))" '' | tr ' ' "${hr}")${br}${NC}"
+    fi
+    # Log to file only (no console output to avoid duplication)
+    printf '[%s] [STEP] Step %s/%s: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" "$2" "$3" >> "$LOG_FILE"
 }
 
 # Spinner (tty only)
@@ -122,7 +174,7 @@ spinner() {                          # spinner <pid> <message>
 }
 
 # -----------------------------------------------------------------------------#
-# 4. Utilities
+# 4. Utilities & Graphics Helpers
 # -----------------------------------------------------------------------------#
 human_readable() {                  # human_readable <bytes>
     awk -v b="$1" 'BEGIN{
@@ -130,6 +182,91 @@ human_readable() {                  # human_readable <bytes>
         for(i=1;b>=1024 && i<6;i++) b/=1024
         printf "%.1f%s", b, u[i]
     }'
+}
+
+# Graphics capability detection
+has_unicode() {
+    # Check for UTF-8 support and terminal capability
+    [[ "${LANG:-}${LC_ALL:-}" =~ UTF-8 ]] && [[ -z "${NO_UNICODE:-}" ]] && [[ -t 1 ]] &&
+    command -v locale &>/dev/null && locale charmap 2>/dev/null | grep -qi utf
+}
+
+# Terminal width detection
+get_terminal_width() {
+    local width
+    if command -v tput &>/dev/null; then
+        width=$(tput cols 2>/dev/null) || width=80
+    else
+        width=${COLUMNS:-80}
+    fi
+    # Ensure minimum width
+    (( width < 60 )) && width=80
+    echo "$width"
+}
+
+# Calculate text width (accounting for emojis and ANSI codes)
+text_width() {
+    local text="$1"
+    # Remove ANSI escape sequences
+    text=$(echo "$text" | sed 's/\x1b\[[0-9;]*m//g')
+    # Emojis typically take 2 character widths in most terminals
+    local emoji_count=$(echo "$text" | grep -o '[🚀✨🔵💥⚠️🔍🌳📁💾🖥️🤝🛠️💥🔐🎉📝]' | wc -l)
+    local base_length=${#text}
+    echo $(( base_length + emoji_count ))
+}
+
+# Center text within given width
+center_text() {
+    local text="$1" width="$2"
+    local text_len=$(text_width "$text")
+    local padding=$(( (width - text_len) / 2 ))
+    (( padding < 0 )) && padding=0
+    printf '%*s%s%*s' "$padding" '' "$text" "$((width - text_len - padding))" ''
+}
+
+# Box drawing characters (Unicode vs ASCII)
+get_box_chars() {
+    if has_unicode; then
+        # Unicode box drawing: ╔═╗║╚╝│─┌┐└┘├┤┬┴┼
+        echo "╔═╗║╚╝│─┌┐└┘├┤┬┴┼"
+    else
+        # ASCII fallback:      +=+|++|--++++++++
+        echo "+=+|++|--+++++++++"
+    fi
+}
+
+# Create a formatted box with content
+print_box() {                      # print_box <color> <title> [content_lines...]
+    local color="$1" title="$2"
+    shift 2
+    local content_lines=("$@")
+
+    # Dynamic width calculation
+    local term_width=$(get_terminal_width)
+    local box_width=$((term_width > 100 ? 100 : term_width - 4))
+    local inner_width=$((box_width - 2))
+
+    # Get box characters
+    local box_chars=$(get_box_chars)
+    local tl=${box_chars:0:1} hr=${box_chars:1:1} tr=${box_chars:2:1}
+    local vr=${box_chars:3:1} bl=${box_chars:4:1} br=${box_chars:5:1}
+
+    # Top border
+    echo -e "${color}${tl}$(printf '%*s' "$((box_width-2))" '' | tr ' ' "${hr}")${tr}${NC}"
+
+    # Title (if provided)
+    if [[ -n "$title" ]]; then
+        echo -e "${color}${vr}$(center_text "${WHITE}${title}${color}" "$inner_width")${vr}${NC}"
+        echo -e "${color}${vr}$(printf '%*s' "$inner_width" '')${vr}${NC}"
+    fi
+
+    # Content lines
+    for line in "${content_lines[@]}"; do
+        echo -e "${color}${vr}$(center_text "${line}${color}" "$inner_width")${vr}${NC}"
+    done
+
+    # Bottom border
+    echo -e "${color}${bl}$(printf '%*s' "$((box_width-2))" '' | tr ' ' "${hr}")${br}${NC}"
 }
 
 is_dry_run() { (( DRY_RUN )); }
