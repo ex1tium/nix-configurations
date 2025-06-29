@@ -1,11 +1,13 @@
 #!/usr/bin/env -S bash -Eeuo pipefail
-# ──────────────────────────────────────────────────────────────────────────────
-#  « install_machine.sh » – Generic NixOS installer (Btrfs / ext4 only)
-#      • Fresh / Dual-boot / Manual modes
-#      • Optional LUKS2 encryption
-#      • Snapper-ready layout if Btrfs
-#      • Re-uses lib/common.sh for *all* heavy lifting
-# ──────────────────────────────────────────────────────────────────────────────
+# 🔥💎✨🚀💥🎉🌟⚡🎯🔥💎✨🚀💥🎉🌟⚡🎯🔥💎✨🚀💥🎉🌟⚡🎯🔥💎✨🚀💥🎉🌟⚡🎯
+#  🎊 « ULTIMATE BLING BLING NIXOS INSTALLER » 🎊
+#      💥 FRESH MODE: Nuke everything like a BOSS! 💥
+#      🤝 DUAL-BOOT: Play nice with other OS 🤝
+#      🛠️  MANUAL MODE: For the hardcore wizards 🧙‍♂️
+#      🔐 LUKS2 ENCRYPTION: Keep your secrets SAFE! 🔐
+#      🌳 BTRFS SNAPSHOTS: Time travel for your files! ⏰
+#      ✨ POWERED BY PURE AWESOMENESS ✨
+# 🔥💎✨🚀💥🎉🌟⚡🎯🔥💎✨🚀💥🎉🌟⚡🎯🔥💎✨🚀💥🎉🌟⚡🎯🔥💎✨🚀💥🎉🌟⚡🎯
 
 shopt -s inherit_errexit lastpipe
 IFS=$'\n\t'
@@ -166,7 +168,7 @@ cleanup_and_exit() {
   fi
   safe_unmount /mnt
   cleanup_temp_files
-  (( QUIET )) || echo -e "${GREEN}Done – log:${NC} $LOG_FILE"
+  (( QUIET )) || echo -e "${GREEN}🎉🔥✨🚀 INSTALLATION COMPLETE - YOU'RE NOW A NIXOS LEGEND! 🚀✨🔥🎉${NC} 📄 LOG: $LOG_FILE"
   exit "$code"
 }
 trap 'log_error "Error on line $LINENO (exit $?)"; cleanup_and_exit 1' ERR
@@ -213,10 +215,10 @@ select_installation_mode() {
   [[ -n $INSTALLATION_MODE ]] && return
   (( NON_INTERACTIVE )) && { log_error "Mode required"; exit 1; }
 
-  echo "  ${GREEN}[1]${NC} ${RED}💥${NC} Fresh  ${WHITE}(erase whole disk)${NC}"
-  echo "  ${GREEN}[2]${NC} ${YELLOW}🤝${NC} Dual-boot ${WHITE}(reuse free space)${NC}"
-  echo "  ${GREEN}[3]${NC} ${BLUE}🛠️${NC}  Manual ${WHITE}(you partition yourself)${NC}"
-  read -rp "${YELLOW}Choose mode [1-3]:${NC} " ans
+  echo "  ${GREEN}[1]${NC} ${RED}💥🔥💀☠️${NC}  FRESH MODE ${RED}(NUKE EVERYTHING!)${NC} ${RED}💥🔥💀☠️${NC}"
+  echo "  ${GREEN}[2]${NC} ${YELLOW}🤝✨🌈🎭${NC} DUAL-BOOT ${YELLOW}(PLAY NICE!)${NC} ${YELLOW}🤝✨🌈🎭${NC}"
+  echo "  ${GREEN}[3]${NC} ${BLUE}🛠️🧙‍♂️⚡🎯${NC} MANUAL MODE ${BLUE}(WIZARD LEVEL!)${NC} ${BLUE}🛠️🧙‍♂️⚡🎯${NC}"
+  read -rp "${YELLOW}🔥💎 CHOOSE YOUR DESTINY [1-3]: 💎🔥${NC} " ans
   case $ans in
      1) INSTALLATION_MODE="fresh" ;;
      2) INSTALLATION_MODE="dual-boot" ;;
@@ -232,7 +234,7 @@ select_machine() {
   for i in "${!DISCOVERED_MACHINES[@]}"; do
       printf "  ${CYAN}[%d]${NC} 🖥️  %s\n" $((i+1)) "${DISCOVERED_MACHINES[$i]}"
   done
-  read -rp "${YELLOW}Select machine:${NC} " n
+  read -rp "${YELLOW}🚀✨ SELECT YOUR LEGENDARY MACHINE: ✨🚀${NC} " n
   SELECTED_MACHINE=${DISCOVERED_MACHINES[$((n-1))]}
 }
 
@@ -242,8 +244,8 @@ select_filesystem() {
     ENABLE_SNAPSHOTS=$([[ $SELECTED_FILESYSTEM == btrfs ]] && echo 1 || echo 0)
     return
   fi
-  echo "  ${GREEN}[1]${NC} ${GREEN}🌳${NC} Btrfs ${WHITE}(snapshots)${NC}  ${GREEN}[2]${NC} ${BLUE}💾${NC} ext4"
-  read -rp "${YELLOW}Filesystem:${NC} " choice
+  echo "  ${GREEN}[1]${NC} ${GREEN}🌳🌿🍃✨⏰${NC} BTRFS ${GREEN}(TIME TRAVEL SNAPSHOTS!)${NC} ${GREEN}🌳🌿🍃✨⏰${NC}  ${GREEN}[2]${NC} ${BLUE}💾🔧⚡🎯${NC} EXT4 ${BLUE}(CLASSIC BEAST!)${NC} ${BLUE}💾🔧⚡🎯${NC}"
+  read -rp "${YELLOW}🌟💫 CHOOSE YOUR FILESYSTEM POWER: 💫🌟${NC} " choice
   case $choice in
     2) SELECTED_FILESYSTEM="ext4"; ENABLE_SNAPSHOTS=0 ;;   # ext4
     *) SELECTED_FILESYSTEM="btrfs"; ENABLE_SNAPSHOTS=1 ;;  # default = btrfs
@@ -255,7 +257,7 @@ select_encryption() {
   [[ -n $ENABLE_ENCRYPTION ]] && return
   (( NON_INTERACTIVE )) && { log_error "Encryption flag required"; exit 1; }
 
-  read -rp "${YELLOW}🔐 Enable LUKS2 encryption? [y/N]:${NC} " a
+  read -rp "${YELLOW}🔐🛡️⚔️ ACTIVATE FORTRESS MODE ENCRYPTION? [y/N]: ⚔️🛡️🔐${NC} " a
   ENABLE_ENCRYPTION=$([[ ${a,,} == y* ]] && echo 1 || echo 0)
 }
 
@@ -268,9 +270,9 @@ select_disk() {
   for i in "${!disks[@]}"; do
      sz=$(lsblk -bno SIZE "${disks[$i]}" 2>/dev/null | head -1)
      sz=${sz:-0}  # lsblk -bno already gives pure numbers, just handle empty case
-     printf "  ${GREEN}[%d]${NC} ${BLUE}💾${NC} %s  ${CYAN}%dGiB${NC}\n" $((i+1)) "${disks[$i]}" $((sz/1024/1024/1024))
+      printf "  ${GREEN}[%d]${NC} ${BLUE}💾🔥⚡🎯${NC} %s  ${CYAN}%dGiB OF PURE POWER!${NC} ${BLUE}💾🔥⚡🎯${NC}\n" $((i+1)) "${disks[$i]}" $((sz/1024/1024/1024))
   done
-  read -rp "${YELLOW}Select disk:${NC} " n
+  read -rp "${YELLOW}💾🔥 SELECT YOUR STORAGE BEAST: 🔥💾${NC} " n
   SELECTED_DISK=${disks[$((n-1))]}
 
   case $INSTALLATION_MODE in
@@ -324,14 +326,14 @@ cleanup_previous_installation() {
   # Prompt for confirmation unless non-interactive
   if (( ! NON_INTERACTIVE )); then
     echo
-    log_warn "CLEANUP REQUIRED: Previous installation artifacts detected"
-    echo "${WHITE}  This will:${NC}"
-    echo "  ${RED}•${NC} Unmount all mount points under ${CYAN}/mnt${NC}"
-    echo "  ${RED}•${NC} Delete any existing BTRFS subvolumes on ${YELLOW}$SELECTED_DISK${NC}"
-    echo "  ${RED}•${NC} Wipe filesystem signatures from existing partitions"
-    echo "  ${RED}•${NC} Clean up temporary files"
+    log_warn "🚨💥 CLEANUP REQUIRED: Previous installation artifacts detected! 💥🚨"
+    echo "${WHITE}🔥 THIS WILL ABSOLUTELY DEMOLISH: 🔥${NC}"
+    echo "  ${RED}💀💥${NC} Unmount all mount points under ${CYAN}/mnt${NC} ${RED}💀💥${NC}"
+    echo "  ${RED}🗑️💣${NC} Delete any existing BTRFS subvolumes on ${YELLOW}$SELECTED_DISK${NC} ${RED}🗑️💣${NC}"
+    echo "  ${RED}🧹⚡${NC} Wipe filesystem signatures from existing partitions ${RED}🧹⚡${NC}"
+    echo "  ${RED}🔥🗂️${NC} Clean up temporary files ${RED}🔥🗂️${NC}"
     echo
-    read -rp "Proceed with cleanup? [y/N]: " confirm
+    read -rp "${YELLOW}🔥💎 READY TO UNLEASH THE ULTIMATE NIXOS BEAST? [y/N]: 💎🔥${NC} " confirm
     case $confirm in
       [Yy]|[Yy][Ee][Ss]) ;;
       *) log_error "Cleanup cancelled by user"; exit 1 ;;
@@ -624,10 +626,10 @@ partition_disk_dual_boot() {
 }
 
 partition_disk_manual() {
-  echo "Manual partitioning – enter paths:"
-  read -rp "ESP partition: " esp
-  read -rp "Root partition: " root
-  read -rp "Home partition (optional): " home
+  echo "${BLUE}🧙‍♂️⚡🛠️ MANUAL PARTITIONING WIZARD MODE – ENTER YOUR LEGENDARY PATHS: 🛠️⚡🧙‍♂️${NC}"
+  read -rp "${CYAN}🚀💫 ESP PARTITION (THE BOOT BEAST): 💫🚀${NC} " esp
+  read -rp "${GREEN}🌳🔥 ROOT PARTITION (THE MAIN FORTRESS): 🔥🌳${NC} " root
+  read -rp "${YELLOW}🏠✨ HOME PARTITION (OPTIONAL SANCTUARY): ✨🏠${NC} " home
 
   validate_partition_path "$esp"  || { echo "Bad ESP"; exit 1; }
   validate_partition_path "$root" || { echo "Bad root"; exit 1; }
@@ -967,28 +969,26 @@ preview_hardware_config() {
 
   # Show filesystem configurations
   if grep -q "fileSystems" "$generated_hw_config"; then
-    echo "${CYAN}💾 Filesystems:${NC}"
-    grep -A 2 'fileSystems\.' "$generated_hw_config" | sed 's/^/  /'
+    echo "${CYAN}💾🔥⚡🎯 FILESYSTEM MADNESS: 🎯⚡🔥💾${NC}"
+    grep -E "(device|fsType|options)" "$generated_hw_config" | head -10 | sed 's/^/    🚀 /'
     echo
   fi
 
-  # Show boot configuration
-  if grep -q "boot\." "$generated_hw_config"; then
-    echo "${BLUE}🚀 Boot configuration:${NC}"
-    grep "boot\." "$generated_hw_config" | head -5 | sed 's/^/  /'
+  if grep -q "boot\.loader" "$generated_hw_config"; then
+    echo "${BLUE}🚀💫🌟✨ BOOT CONFIGURATION WIZARDRY: ✨🌟💫🚀${NC}"
+    grep -E "boot\.loader" "$generated_hw_config" | head -5 | sed 's/^/    🔥 /'
     echo
   fi
 
-  # Show if LUKS is configured
   if grep -q "luks" "$generated_hw_config"; then
-    echo "${PURPLE}🔐 Encryption detected:${NC}"
-    grep "luks" "$generated_hw_config" | sed 's/^/  /'
+    echo "${PURPLE}🔐🛡️⚔️🏰 ENCRYPTION FORTRESS DETECTED: 🏰⚔️🛡️🔐${NC}"
+    grep -i "luks" "$generated_hw_config" | head -3 | sed 's/^/    🔒 /'
     echo
   fi
 
-  # Ask for confirmation
-  echo "${GREEN}✨ Complete hardware configuration:${NC}"
-  echo "${WHITE}(Full configuration that will be used for installation)${NC}"
+  # Display the complete hardware configuration
+  echo "${GREEN}✨🎊🎉🔥 COMPLETE HARDWARE CONFIGURATION OF PURE AWESOMENESS: 🔥🎉🎊✨${NC}"
+  echo "${WHITE}🌟 (This LEGENDARY configuration will be used for installation!) 🌟${NC}"
   cat "$generated_hw_config" | sed 's/^/  /'
   echo
 
