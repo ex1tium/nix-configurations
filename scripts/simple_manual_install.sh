@@ -27,7 +27,7 @@ main() {
     echo "sudo parted /dev/sda -- mkpart primary 512MB 100%"
     echo
     echo "# Format partitions"
-    echo "sudo mkfs.fat -F 32 -n boot /dev/sda1"
+    echo "sudo mkfs.fat -F 32 -n BOOT /dev/sda1"
     echo "sudo mkfs.btrfs -L nixos /dev/sda2"
     echo
     

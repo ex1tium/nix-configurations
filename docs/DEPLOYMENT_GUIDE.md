@@ -35,13 +35,13 @@ This method deploys directly from the NixOS live environment without a basic ins
    parted /dev/sda -- mkpart primary 512MB 100%
    
    # Format partitions
-   mkfs.fat -F 32 -n boot /dev/sda1
+   mkfs.fat -F 32 -n BOOT /dev/sda1
    mkfs.ext4 -L nixos /dev/sda2
    
    # Mount filesystems
    mount /dev/disk/by-label/nixos /mnt
    mkdir -p /mnt/boot
-   mount /dev/disk/by-label/boot /mnt/boot
+   mount /dev/disk/by-label/BOOT /mnt/boot
    ```
 
 3. **Clone Configuration Repository**
@@ -175,7 +175,7 @@ cat > machines/new-workstation/hardware-configuration.nix << 'EOF'
   };
   
   fileSystems."/boot" = {
-    device = "/dev/disk/by-label/boot";
+    device = "/dev/disk/by-label/BOOT";
     fsType = "vfat";
   };
   

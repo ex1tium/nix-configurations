@@ -617,8 +617,8 @@ create_fresh_partitions() {        # create_fresh_partitions <disk>
     sudo partprobe "$disk"
     sleep 2
 
-    # Format ESP
-    sudo mkfs.fat -F32 -n boot "${disk}1"
+    # Format ESP with uppercase label for maximum compatibility
+    sudo mkfs.fat -F32 -n BOOT "${disk}1"
 
     log_info "Fresh partitions created successfully"
     return 0
@@ -653,7 +653,7 @@ create_dual_boot_partitions() {    # create_dual_boot_partitions <disk>
             sudo parted -s "$disk" set "$esp_num" esp on
 
             esp_partition="${disk}${esp_num}"
-            sudo mkfs.fat -F32 -n boot "$esp_partition"
+            sudo mkfs.fat -F32 -n BOOT "$esp_partition"
         else
             esp_partition="${disk}1"  # Placeholder for dry-run
         fi

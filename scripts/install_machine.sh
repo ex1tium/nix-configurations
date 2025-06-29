@@ -1101,20 +1101,67 @@ validate_and_fix_hardware_config() {
   # Get actual UUIDs from block devices (not mounts)
   local root_uuid esp_uuid root_device esp_device
 
-  # Get root device UUID
+  # Get root device UUID using robust method
   root_device=$(findmnt -n -o SOURCE /mnt | sed 's/\[.*\]//')  # Remove subvolume part
   if [[ -n $root_device ]]; then
-    root_uuid=$(blkid -s UUID -o value "$root_device" 2>/dev/null)
+    # Wait for device to be ready
+    sleep 2
+    # Use blkid with retry logic
+    local retry_count=0
+    while [[ $retry_count -lt 5 ]]; do
+      root_uuid=$(blkid -s UUID -o value "$root_device" 2>/dev/null)
+      if [[ -n $root_uuid ]] && [[ -e "/dev/disk/by-uuid/$root_uuid" ]]; then
+        break
+      fi
+      log_info "Waiting for root UUID to be available (attempt $((retry_count + 1))/5)..."
+      sleep 2
+      sudo udevadm settle
+      ((retry_count++))
+    done
   fi
 
-  # Get ESP device UUID
+  # Get ESP device UUID using robust method
   esp_device=$(findmnt -n -o SOURCE /mnt/boot 2>/dev/null)
   if [[ -n $esp_device ]]; then
-    esp_uuid=$(blkid -s UUID -o value "$esp_device" 2>/dev/null)
+    # Wait for device to be ready
+    sleep 1
+    # Use blkid with retry logic
+    local retry_count=0
+    while [[ $retry_count -lt 5 ]]; do
+      esp_uuid=$(blkid -s UUID -o value "$esp_device" 2>/dev/null)
+      if [[ -n $esp_uuid ]] && [[ -e "/dev/disk/by-uuid/$esp_uuid" ]]; then
+        break
+      fi
+      log_info "Waiting for ESP UUID to be available (attempt $((retry_count + 1))/5)..."
+      sleep 2
+      sudo udevadm settle
+      ((retry_count++))
+    done
   fi
 
   log_info "Detected devices - Root: $root_device, ESP: $esp_device"
   log_info "Detected UUIDs - Root: $root_uuid, ESP: $esp_uuid"
+
+  # Validate UUIDs are accessible (with fallback)
+  if [[ -n $root_uuid ]] && [[ ! -e "/dev/disk/by-uuid/$root_uuid" ]]; then
+    log_warn "Root UUID $root_uuid not accessible in /dev/disk/by-uuid/"
+    log_warn "Skipping UUID validation - hardware config may need manual review"
+    root_uuid=""  # Clear invalid UUID
+  fi
+
+  if [[ -n $esp_uuid ]] && [[ ! -e "/dev/disk/by-uuid/$esp_uuid" ]]; then
+    log_warn "ESP UUID $esp_uuid not accessible in /dev/disk/by-uuid/"
+    log_warn "Skipping UUID validation - hardware config may need manual review"
+    esp_uuid=""  # Clear invalid UUID
+  fi
+
+  # If no valid UUIDs detected, skip patching entirely
+  if [[ -z $root_uuid ]] && [[ -z $esp_uuid ]]; then
+    log_warn "No valid UUIDs detected - skipping hardware config patching"
+    log_warn "The generated hardware config should work as-is"
+    log_info "Hardware configuration validation completed (no patching needed)"
+    return 0
+  fi
 
   # Check for UUID mismatches and patch if needed
   local needs_patching=false
