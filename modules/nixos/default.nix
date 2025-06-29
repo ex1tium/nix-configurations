@@ -17,6 +17,7 @@ in
     ./users.nix
     ./networking.nix
     ./security.nix
+    ./git.nix
     ./hardware-compatibility.nix  # Hardware compatibility detection and fixes
     ../validation.nix  # Comprehensive validation and error handling
   ];
