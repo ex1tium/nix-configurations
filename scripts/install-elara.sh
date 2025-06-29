@@ -193,10 +193,24 @@ sudo cp /mnt/etc/nixos/hardware-configuration.nix "machines/$MACHINE/"
 echo "🚀  nixos-install…"; (sudo nixos-install --no-root-password --flake ".#$MACHINE" --root /mnt &>/tmp/nixos_install.log) & spinner $! "Install"
 
 ###############################################################################
-# Post‑install password prompt (in chroot)
+# Post‑install password setup
 ###############################################################################
 read -rp "Set password for $PRIMARY_USER now? [Y/n]: " setpw; setpw=${setpw:-Y}
-[[ $setpw =~ ^[Yy] ]] && sudo chroot /mnt passwd "$PRIMARY_USER"
-read -rp "Set root password? [y/N]: " setroot; [[ $setroot =~ ^[Yy] ]] && sudo chroot /mnt passwd root
+if [[ $setpw =~ ^[Yy] ]]; then
+  echo "Setting password for $PRIMARY_USER..."
+  if ! sudo nixos-enter --root /mnt -c "passwd $PRIMARY_USER" 2>/dev/null; then
+    echo "⚠️  nixos-enter failed, trying alternative method..."
+    echo "You can set the password after reboot with: sudo passwd $PRIMARY_USER"
+  fi
+fi
+
+read -rp "Set root password? [y/N]: " setroot
+if [[ $setroot =~ ^[Yy] ]]; then
+  echo "Setting root password..."
+  if ! sudo nixos-enter --root /mnt -c "passwd root" 2>/dev/null; then
+    echo "⚠️  nixos-enter failed, trying alternative method..."
+    echo "You can set the root password after reboot with: sudo passwd root"
+  fi
+fi
 
 echo -e "\n\033[1;32m🎉  Done — remove media and reboot.\033[0m"
