@@ -932,7 +932,15 @@ generate_hw_config() {
   fi
 
   # Generate hardware configuration
+  log_info "Running nixos-generate-config..."
   sudo nixos-generate-config --root /mnt >/dev/null
+
+  # Show what was generated for debugging
+  log_info "Generated hardware configuration preview:"
+  if [[ -f /mnt/etc/nixos/hardware-configuration.nix ]]; then
+    # Show filesystem entries for debugging
+    grep -A 3 -B 1 'fileSystems\."/"' /mnt/etc/nixos/hardware-configuration.nix || log_warn "Could not find root filesystem config"
+  fi
 
   # Validate and fix hardware configuration
   validate_and_fix_hardware_config
@@ -1017,10 +1025,13 @@ validate_and_fix_hardware_config() {
   if [[ $SELECTED_FILESYSTEM == "btrfs" ]]; then
     log_info "Validating BTRFS subvolume configuration..."
 
-    # Check that subvolume options are present
-    if ! grep -q "subvol=@root" "$hw_config"; then
-      log_warn "BTRFS subvolume options missing from hardware config"
+    # Check that subvolume options are present AND that fsType is btrfs
+    if ! grep -q "subvol=@root" "$hw_config" || ! grep -q 'fsType = "btrfs"' "$hw_config"; then
+      log_warn "BTRFS configuration missing or incorrect in hardware config"
+      log_info "Regenerating hardware config with correct BTRFS subvolume options..."
       fix_btrfs_hardware_config "$hw_config"
+    else
+      log_success "BTRFS hardware configuration looks correct"
     fi
   fi
 
