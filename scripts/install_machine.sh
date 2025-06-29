@@ -950,6 +950,27 @@ generate_hw_config() {
   validate_and_fix_hardware_config
 }
 
+generate_facter_config() {
+  next_step "Generate facter.json"
+
+  if is_dry_run; then
+    log_info "DRY-RUN: Would generate facter.json for hardware detection"
+    return 0
+  fi
+
+  local facter_file="./machines/$SELECTED_MACHINE/facter.json"
+  log_info "Generating hardware facts with nixos-facter..."
+
+  if nixos-facter > "$facter_file"; then
+    log_success "Generated hardware facts at $facter_file"
+    git add "$facter_file"
+    log_info "facter.json staged with git for flake access"
+  else
+    log_error "Failed to generate hardware facts with nixos-facter"
+    return 1
+  fi
+}
+
 preview_hardware_config() {
   local generated_hw_config="/mnt/etc/nixos/hardware-configuration.nix"
 
@@ -1046,6 +1067,9 @@ install_nixos() {
     return 1
   fi
 
+  # Generate facter.json for pure hardware detection
+  generate_facter_config || return 1
+
   log_info "Starting NixOS installation..."
   local install_success=0
   if sudo nixos-install --no-root-password --flake ".#$SELECTED_MACHINE" --root /mnt; then
@@ -1061,6 +1085,12 @@ install_nixos() {
   if [[ -f "$repo_hw_config" ]]; then
     rm "$repo_hw_config"
     log_info "Temporary hardware config removed from repository"
+  fi
+
+  local facter_file="./machines/$SELECTED_MACHINE/facter.json"
+  if [[ -f "$facter_file" ]]; then
+    rm "$facter_file"
+    log_info "Temporary facter.json removed from repository"
   fi
 
   return $((1 - install_success))

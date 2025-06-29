@@ -11,7 +11,7 @@ set -euo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 # Required packages for the installer
-REQUIRED_PACKAGES=(git parted util-linux gptfdisk cryptsetup rsync gnutar jq bc)
+REQUIRED_PACKAGES=(git parted util-linux gptfdisk cryptsetup rsync gnutar jq bc nixos-facter)
 
 # Colors for output
 RED='\033[0;31m'
