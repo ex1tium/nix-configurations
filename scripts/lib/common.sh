@@ -360,10 +360,43 @@ detect_esp_partition() {            # detect_esp_partition <disk>
 # -----------------------------------------------------------------------------#
 # 9. Nix helpers
 # -----------------------------------------------------------------------------#
-get_nix_flags() { echo "--extra-experimental-features nix-command --extra-experimental-features flakes"; }
+get_nix_flags() {
+    local flags=(
+        # Essential experimental features
+        "--extra-experimental-features" "nix-command"
+        "--extra-experimental-features" "flakes"
+
+        # Installation-friendly options
+        "--option" "warn-dirty" "false"           # Suppress dirty git warnings during installation
+        "--option" "eval-cache" "false"           # Disable eval cache for fresh builds
+        "--option" "pure-eval" "false"            # Allow impure evaluation for installation context
+        "--option" "allow-import-from-derivation" "true"  # Allow IFD for complex builds
+
+        # Performance and reliability
+        "--option" "max-jobs" "auto"              # Use all available cores
+        "--option" "cores" "0"                    # Use all available cores for building
+        "--option" "keep-going" "true"            # Continue building other derivations on failure
+
+        # Network and substitution
+        "--option" "substitute" "true"            # Enable binary cache substitution
+        "--option" "builders-use-substitutes" "true"  # Allow builders to use substitutes
+    )
+    echo "${flags[*]}"
+}
+
+# Specialized flags for different operations
+get_nix_build_flags() {
+    local base_flags; base_flags=$(get_nix_flags)
+    echo "$base_flags --option build-timeout 3600"  # 1 hour timeout for builds
+}
+
+get_nix_eval_flags() {
+    local base_flags; base_flags=$(get_nix_flags)
+    echo "$base_flags --option restrict-eval false"  # Allow unrestricted evaluation
+}
 
 detect_primary_user_from_flake() {  # detect_primary_user_from_flake [dir]
-    local dir=${1:-.} u flags; flags=$(get_nix_flags)
+    local dir=${1:-.} u flags; flags=$(get_nix_eval_flags)
     if command -v nix &>/dev/null; then
         u=$(nix $flags eval --impure --expr "((import $dir/.).globalConfig).defaultUser or \"\"" --raw 2>/dev/null)
         [[ -z $u ]] && u=$(nix $flags eval "$dir#globalConfig.defaultUser" --raw 2>/dev/null)
@@ -373,7 +406,7 @@ detect_primary_user_from_flake() {  # detect_primary_user_from_flake [dir]
 }
 
 validate_nix_build() {             # validate_nix_build <flake_ref>
-    local flake_ref=$1 flags; flags=$(get_nix_flags)
+    local flake_ref=$1 flags; flags=$(get_nix_build_flags)
     log_info "Validating configuration build: $flake_ref"
 
     if is_dry_run; then
@@ -381,13 +414,15 @@ validate_nix_build() {             # validate_nix_build <flake_ref>
         return 0
     fi
 
+    log_info "Using Nix flags for build validation..."
     if ! nix $flags build --dry-run "$flake_ref" &>/tmp/build_test.log; then
         log_error "Configuration build validation failed"
+        log_error "Build log (last 20 lines):"
         [[ -f /tmp/build_test.log ]] && tail -20 /tmp/build_test.log >&2
         return 1
     fi
 
-    log_info "Configuration build validation successful"
+    log_success "Configuration build validation successful! ✅"
     return 0
 }
 
