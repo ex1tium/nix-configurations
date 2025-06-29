@@ -35,12 +35,10 @@
       kernel = "latest"; # Use latest kernel for development
       enableVirtualization = true;
       enableRemoteDesktop = true;
-      # GPU auto-detected by hardware compatibility module (enabled by default)
+      # GPU auto-detected by enhanced hardware detection module (enabled by default)
       
-      # Hardware compatibility is enabled by default, only override debug for testing
-      compatibility = {
-        debug = true; # Enable for testing/validation
-      };
+      # Enhanced hardware detection debug mode for testing/validation
+      debug = true; # Enable for testing/validation
     };
   };
 

@@ -1,172 +1,188 @@
-# Hardware Compatibility Module
-# Automatically detects and configures vendor-specific hardware settings
-# Handles CPU (KVM modules), GPU detection, and virtualization optimizations
+# Enhanced Hardware Detection Module
+# Production-ready: handles real hardware and complex VM/passthrough scenarios.
+# Merges the best features of previous hardware detection modules.
 
 { config, lib, pkgs, ... }:
 
 with lib;
 
 let
-  # CPU vendor detection (safe default for pure evaluation)
-  # Actual detection happens at system build time
-  cpuVendor = "intel";  # Safe default
+  # Safe evaluation wrapper for file system access
+  safeReadFile = path: default:
+    if builtins.pathExists path
+    then (builtins.tryEval (builtins.readFile path)).value or default
+    else default;
 
-  # GPU detection (safe default for pure evaluation)
-  # For VMs: Check if we have real GPU hardware vs virtual/emulated graphics
-  # Real GPU detection happens at system build time via PCI vendor IDs
-  # Virtual environments (QEMU, VirtualBox, VMware) should use "none"
-  gpuVendor = 
-    if isVirtualized then "none"  # VMs without GPU passthrough = no real GPU
-    else "none";  # Physical systems default to Intel (most common)
+  # Enhanced CPU vendor detection with robust fallback
+  cpuVendor =
+    let
+      cpuinfo = safeReadFile "/proc/cpuinfo" "";
+      vendorMatch = builtins.match ".*vendor_id[[:space:]]*:[[:space:]]*([^[:space:]]+).*" cpuinfo;
+      vendorId = if vendorMatch != null then head vendorMatch else "";
+    in
+    if (builtins.match ".*GenuineIntel.*" vendorId) != null then "intel"
+    else if (builtins.match ".*AuthenticAMD.*" vendorId) != null then "amd"
+    else pkgs.stdenv.hostPlatform.parsed.cpu.name; # Fallback to Nix detection
 
-  # Virtualization detection (safe default for pure evaluation)
-  # More conservative approach - assume virtualized to avoid hardware conflicts
-  isVirtualized = true;  # Safe default - prevents loading incompatible physical hardware drivers system build time
+  # Enhanced virtualization detection
+  isVirtualized =
+    let
+      dmiProduct = safeReadFile "/sys/class/dmi/id/product_name" "";
+      dmiVendor = safeReadFile "/sys/class/dmi/id/sys_vendor" "";
+      cpuinfo = safeReadFile "/proc/cpuinfo" "";
 
-  # Determine correct KVM modules based on CPU vendor
-  kvmModules = 
+      vmIndicators = [
+        "QEMU"
+        "VirtualBox"
+        "VMware"
+        "Microsoft Corporation" # Hyper-V
+        "Xen"
+        "KVM"
+        "Standard PC"
+        "Virtual Machine"
+      ];
+
+      hasVmIndicator = builtins.any (indicator:
+        (builtins.match ".*${indicator}.*" dmiProduct) != null ||
+        (builtins.match ".*${indicator}.*" dmiVendor) != null
+      ) vmIndicators;
+
+      hasHypervisorFlag = (builtins.match ".*hypervisor.*" cpuinfo) != null;
+
+    in hasVmIndicator || hasHypervisorFlag;
+
+  # Enhanced GPU detection with better VM/passthrough awareness
+  gpuVendor =
+    let
+      # Check PCI devices for VGA controllers (class 0300)
+      pciDevices = safeReadFile "/proc/bus/pci/devices" "";
+      vgaControllers =
+        if pciDevices != "" 
+        then builtins.filter (line: (builtins.match ".*0300.*" line) != null)
+             (builtins.split "\n" pciDevices)
+        else [];
+
+      # Extract vendor IDs from VGA controllers
+      # Passthrough GPUs will appear here with their real vendor IDs
+      hasNvidiaGpu = builtins.any (line: (builtins.match ".*10de.*" line) != null) vgaControllers;
+      hasAmdGpu = builtins.any (line: (builtins.match ".*1002.*" line) != null) vgaControllers;
+      hasIntelGpu = builtins.any (line: (builtins.match ".*8086.*" line) != null) vgaControllers;
+      # Standard QEMU/Bochs VGA adapter
+      hasQemuGpu = builtins.any (line: (builtins.match ".*1234.*" line) != null) vgaControllers;
+      # VirtIO GPU
+      hasVirtioGpu = builtins.any (line: (builtins.match ".*1af4.*" line) != null) vgaControllers;
+
+
+      # Check for loaded kernel modules as a secondary detection method
+      lsmodOutput = safeReadFile "/proc/modules" "";
+      hasNvidiaModule = (builtins.match ".*nvidia.*" lsmodOutput) != null;
+      hasAmdModule = (builtins.match ".*amdgpu.*" lsmodOutput) != null || (builtins.match ".*radeon.*" lsmodOutput) != null;
+      hasIntelModule = (builtins.match ".*i915.*" lsmodOutput) != null || (builtins.match ".*xe.*" lsmodOutput) != null;
+
+    in
+    # Priority-based detection for multi-GPU or passthrough scenarios
+    if hasNvidiaGpu || hasNvidiaModule then "nvidia"
+    else if hasAmdGpu || hasAmdModule then "amd"
+    else if hasIntelGpu || hasIntelModule then "intel"
+    # Handle virtual GPUs specifically. If a physical GPU is passed through,
+    # it should be detected above. This handles VMs without passthrough.
+    else if isVirtualized && (hasQemuGpu || hasVirtioGpu) then "none"
+    # Fallback for VMs where no specific GPU is detected
+    else if isVirtualized then "none"
+    # Fallback for physical systems, assuming Intel iGPU if nothing else is found
+    else "intel";
+
+  # Generate appropriate KVM modules based on detected CPU
+  kvmModules =
     if cpuVendor == "intel" then [ "kvm-intel" ]
     else if cpuVendor == "amd" then [ "kvm-amd" ]
     else [];
 
-  # VM-specific kernel parameters for better compatibility
+  # VM optimization parameters
   vmKernelParams = optionals isVirtualized [
     "kvm.ignore_msrs=1"
     "kvm.report_ignored_msrs=0"
-    "mitigations=off"  # Optional: better VM performance
+    "mitigations=off"
   ];
+
+  # IOMMU parameters for virtualization/passthrough, based on CPU vendor
+  iommuParams =
+    if cpuVendor == "intel" then [ "intel_iommu=on" "iommu=pt" ]
+    else if cpuVendor == "amd" then [ "amd_iommu=on" "iommu=pt" ]
+    else [];
 
 in
 
 {
-  options.mySystem.hardware.compatibility = {
-    enable = mkEnableOption "automatic hardware compatibility detection and configuration";
-    
-    autoDetectKvm = mkOption {
+  options.mySystem.hardware = {
+    enable = mkEnableOption "production-ready hardware compatibility detection and configuration";
+
+    cpu.vendor = mkOption {
+      type = types.enum [ "intel" "amd" "unknown" ] ++ [ pkgs.stdenv.hostPlatform.parsed.cpu.name ];
+      default = cpuVendor;
+      description = "Detected CPU vendor for hardware-specific optimizations.";
+    };
+
+    gpu = mkOption {
+      type = types.enum [ "intel" "amd" "nvidia" "none" "auto" ];
+      default = "auto"; # Default to auto-detection
+      description = "GPU vendor for driver configuration. 'auto' uses the detected value.";
+    };
+
+    detectedGpu = mkOption {
+      type = types.enum [ "intel" "amd" "nvidia" "none" ];
+      readOnly = true;
+      default = gpuVendor;
+      description = "The GPU vendor automatically detected by the system.";
+    };
+
+    isVirtualized = mkOption {
       type = types.bool;
-      default = true;
-      description = "Automatically detect and configure correct KVM modules based on CPU vendor";
-    };
-
-    autoDetectGpu = mkOption {
-      type = types.bool;
-      default = true;
-      description = "Automatically detect and configure GPU drivers based on detected hardware";
-    };
-
-    autoVmOptimizations = mkOption {
-      type = types.bool;
-      default = true;
-      description = "Automatically apply VM-specific optimizations when virtualization is detected";
-    };
-
-    cpuVendorOverride = mkOption {
-      type = types.nullOr (types.enum [ "intel" "amd" ]);
-      default = null;
-      description = "Override automatic CPU vendor detection";
-    };
-
-    gpuVendorOverride = mkOption {
-      type = types.nullOr (types.enum [ "intel" "amd" "nvidia" "none" ]);
-      default = null;
-      description = "Override automatic GPU vendor detection";
+      default = isVirtualized;
+      description = "Whether the system is detected as running in a virtual machine.";
     };
 
     debug = mkOption {
       type = types.bool;
       default = false;
-      description = "Enable debug logging for hardware compatibility detection";
+      description = "Enable debug output for hardware detection.";
     };
   };
 
-  config = mkIf config.mySystem.hardware.compatibility.enable {
+  config = mkIf config.mySystem.hardware.enable {
 
-    # Debug information (only shown during build if debug is enabled)
-    warnings = optionals config.mySystem.hardware.compatibility.debug [
-      "Hardware Compatibility Debug: CPU Vendor = ${cpuVendor}"
-      "Hardware Compatibility Debug: GPU Vendor = ${gpuVendor}"
-      "Hardware Compatibility Debug: Virtualized = ${toString isVirtualized}"
-      "Hardware Compatibility Debug: KVM Modules = ${toString kvmModules}"
-      "Hardware Compatibility Debug: Auto GPU Detection = ${toString config.mySystem.hardware.compatibility.autoDetectGpu}"
-      "Hardware Compatibility Debug: Detected GPU Vendor = ${gpuVendor}"
-    ];
+    # Configure KVM modules based on detected CPU vendor
+    boot.kernelModules = mkDefault kvmModules;
 
-    # Kernel modules configuration
-    boot.kernelModules = mkIf config.mySystem.hardware.compatibility.autoDetectKvm (
-      let
-        finalCpuVendor = config.mySystem.hardware.compatibility.cpuVendorOverride or cpuVendor;
-        finalKvmModules = 
-          if finalCpuVendor == "intel" then [ "kvm-intel" ]
-          else if finalCpuVendor == "amd" then [ "kvm-amd" ]
-          else [];
-      in
-      finalKvmModules
-    );
+    # Add VM-specific and IOMMU kernel parameters
+    boot.kernelParams = mkDefault (vmKernelParams ++ iommuParams);
 
-    # VM-specific kernel parameters
-    boot.kernelParams = mkIf (config.mySystem.hardware.compatibility.autoVmOptimizations && isVirtualized) (
-      let
-        finalCpuVendor = config.mySystem.hardware.compatibility.cpuVendorOverride or cpuVendor;
-        # CPU-vendor specific IOMMU parameters
-        iommuParams = 
-          if finalCpuVendor == "intel" then [ "intel_iommu=on" ]
-          else if finalCpuVendor == "amd" then [ "amd_iommu=on" ]
-          else [];
-      in
-      vmKernelParams ++ iommuParams
-    );
-
-    # Additional VM optimizations
-    # Note: VM-specific sysctl optimizations (vm.swappiness, vm.vfs_cache_pressure) 
-    # are handled by desktop modules to avoid conflicts
-
-    # Hardware-specific services and configurations
-    services = mkIf isVirtualized {
-      # Enable QEMU guest agent if available
-      qemuGuest.enable = mkDefault true;
-      
-      # Optimize for virtualized environment
-      fstrim.enable = mkDefault true;
+    # System optimization based on virtualization status
+    boot.kernel.sysctl = mkIf isVirtualized {
+      "vm.swappiness" = mkDefault 10;
+      "kernel.sched_migration_cost_ns" = mkDefault 5000000;
     };
 
-    # Virtualization-specific packages
-    environment.systemPackages = mkIf isVirtualized [
-      pkgs.qemu-utils
+    # Debug output
+    warnings = mkIf config.mySystem.hardware.debug [
+      "Hardware Detection Debug: CPU Vendor = ${config.mySystem.hardware.cpu.vendor}"
+      "Hardware Detection Debug: GPU Setting = ${config.mySystem.hardware.gpu}"
+      "Hardware Detection Debug: Detected GPU = ${config.mySystem.hardware.detectedGpu}"
+      "Hardware Detection Debug: Virtualized = ${toString config.mySystem.hardware.isVirtualized}"
+      "Hardware Detection Debug: KVM Modules = ${toString kvmModules}"
     ];
 
-    # Hardware-specific module loading prevention
-    # This prevents the hardware-configuration.nix from loading incompatible modules
-    boot.blacklistedKernelModules = 
-      let
-        finalCpuVendor = config.mySystem.hardware.compatibility.cpuVendorOverride or cpuVendor;
-      in
-      mkIf config.mySystem.hardware.compatibility.autoDetectKvm (
-        if finalCpuVendor == "intel" then [ "kvm-amd" "kvm_amd" ]
-        else if finalCpuVendor == "amd" then [ "kvm-intel" "kvm_intel" ]
-        else []
-      );
-
-    # System information for debugging
-    environment.etc."hardware-compatibility-info".text = ''
-      # Hardware Compatibility Detection Results
-      # Generated automatically by NixOS hardware compatibility module
-      
-      CPU_VENDOR=${cpuVendor}
-      GPU_VENDOR=${gpuVendor}
-      IS_VIRTUALIZED=${toString isVirtualized}
-      KVM_MODULES=${toString kvmModules}
-      VM_KERNEL_PARAMS=${toString vmKernelParams}
-      
-      # Configuration Status
-      AUTO_DETECT_KVM=${toString config.mySystem.hardware.compatibility.autoDetectKvm}
-      AUTO_DETECT_GPU=${toString config.mySystem.hardware.compatibility.autoDetectGpu}
-      AUTO_VM_OPTIMIZATIONS=${toString config.mySystem.hardware.compatibility.autoVmOptimizations}
-      
-      # Applied Configuration
-      DETECTED_GPU_VENDOR=${gpuVendor}
-      
-      # This file is for informational purposes only
-      # Configuration is applied automatically through NixOS modules
+    # System info for debugging
+    system.build.hardware-info = pkgs.writeText "hardware-info" ''
+      Hardware Detection Results:
+      ===================================
+      CPU Vendor: ${config.mySystem.hardware.cpu.vendor}
+      GPU Setting: ${config.mySystem.hardware.gpu}
+      Detected GPU: ${config.mySystem.hardware.detectedGpu}
+      Virtualized: ${toString config.mySystem.hardware.isVirtualized}
+      KVM Modules: ${toString kvmModules}
+      VM Kernel Params: ${toString vmKernelParams}
+      IOMMU Params: ${toString iommuParams}
     '';
   };
 }

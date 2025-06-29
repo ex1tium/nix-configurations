@@ -71,14 +71,9 @@ in
       enableRemoteDesktop = mkDefault defaults.hardware.enableRemoteDesktop;
       gpu = mkDefault defaults.hardware.gpu;  # Now "auto" by default
       
-      # Hardware compatibility enabled by default - auto-detects everything
-      compatibility = {
-        enable = mkDefault defaults.hardware.compatibility.enable;
-        autoDetectKvm = mkDefault defaults.hardware.compatibility.autoDetectKvm;
-        autoDetectGpu = mkDefault defaults.hardware.compatibility.autoDetectGpu;
-        autoVmOptimizations = mkDefault defaults.hardware.compatibility.autoVmOptimizations;
-        debug = mkDefault defaults.hardware.compatibility.debug;
-      };
+      # Enhanced hardware detection enabled by default - auto-detects everything
+      enable = mkDefault true;
+      debug = mkDefault false;
     };
   };
 

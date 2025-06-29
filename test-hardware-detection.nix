@@ -9,12 +9,9 @@
     ./modules/nixos
   ];
 
-  # Enable hardware compatibility with debug mode
-  mySystem.hardware.compatibility = {
+  # Enable enhanced hardware detection with debug mode
+  mySystem.hardware = {
     enable = true;
-    autoDetectKvm = true;
-    autoDetectGpu = true;
-    autoVmOptimizations = true;
     debug = true;  # This will show detection results as build warnings
   };
 
