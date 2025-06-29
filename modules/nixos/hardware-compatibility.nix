@@ -12,8 +12,12 @@ let
   cpuVendor = "intel";  # Safe default
 
   # GPU detection (safe default for pure evaluation)
-  # Actual detection happens at system build time
-  gpuVendor = "intel";  # Safe default
+  # For VMs: Check if we have real GPU hardware vs virtual/emulated graphics
+  # Real GPU detection happens at system build time via PCI vendor IDs
+  # Virtual environments (QEMU, VirtualBox, VMware) should use "none"
+  gpuVendor = 
+    if isVirtualized then "none"  # VMs without GPU passthrough = no real GPU
+    else "none";  # Physical systems default to Intel (most common)
 
   # Virtualization detection (safe default for pure evaluation)
   # More conservative approach - assume virtualized to avoid hardware conflicts
