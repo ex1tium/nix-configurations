@@ -34,11 +34,12 @@ with lib;
     
     # Boot and kernel defaults
     bootLoader = "systemd-boot";     # Modern UEFI boot loader
-    kernelParams = [                 # Default kernel parameters
-      "quiet"
-      "loglevel=3"
-      "systemd.show_status=auto"
-      "rd.udev.log_level=3"
+    kernelParams = [                 # Verbose kernel parameters for debugging boot issues
+      # "quiet" # Intentionally disabled for debugging
+      "loglevel=7"
+      "systemd.log_level=debug"
+      "systemd.show_status=true"
+      "rd.udev.log_level=7"
     ];
     
     # Package management defaults

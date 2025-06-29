@@ -173,26 +173,31 @@ in
       boot.blacklistedKernelModules = [ "nouveau" ];
     })
 
-    # "none" GPU Configuration - for VMs without GPU passthrough or headless systems
+    # "none" GPU Configuration - for VMs or software rendering
     (mkIf (gpuType == "none") {
-      # Minimal graphics support for headless/VM environments
+      # For VMs or systems without a dedicated GPU, we can still run a desktop
+      # using software rendering with the 'modesetting' driver.
+      services.xserver.videoDrivers = [ "modesetting" ];
+      
+      # Enable basic graphics stack and explicitly include Mesa for software rendering.
       hardware.graphics = {
-        enable = mkForce false;   # Force disable hardware graphics acceleration
-        enable32Bit = mkForce false;  # Force disable 32-bit support (overrides common.nix)
+        enable = true;
+        enable32Bit = true;
+        extraPackages = with pkgs; [ mesa ];
       };
-      
-      # Ensure no GPU-specific kernel modules are loaded
+
+      # The virtio_gpu module is needed for basic display in QEMU/KVM.
+      boot.kernelModules = [ "virtio_gpu" ];
+
+      # Add mesa-demos for verifying software rendering (e.g., `glxinfo | grep "OpenGL renderer"`).
+      environment.systemPackages = with pkgs; [ mesa-demos ];
+
+      # Blacklist drivers for physical hardware to avoid conflicts in VMs.
       boot.blacklistedKernelModules = [
-        "i915" "xe"          # Intel GPU modules
-        "amdgpu" "radeon"    # AMD GPU modules  
-        "nvidia" "nouveau"   # NVIDIA GPU modules
-        "snd_hda_intel"      # Intel HDA audio (often tied to iGPU)
-      ];
-      
-      # VM-friendly minimal package set
-      environment.systemPackages = with pkgs; [
-        # Basic OpenGL info tools only
-        mesa-demos
+        "i915" "xe"
+        "amdgpu" "radeon"
+        "nvidia" "nouveau"
+        "snd_hda_intel"
       ];
     })
 
