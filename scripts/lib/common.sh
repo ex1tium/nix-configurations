@@ -360,7 +360,7 @@ detect_esp_partition() {            # detect_esp_partition <disk>
 # -----------------------------------------------------------------------------#
 # 9. Nix helpers
 # -----------------------------------------------------------------------------#
-get_nix_flags() { echo "--extra-experimental-features 'nix-command flakes'"; }
+get_nix_flags() { echo "--extra-experimental-features nix-command --extra-experimental-features flakes"; }
 
 detect_primary_user_from_flake() {  # detect_primary_user_from_flake [dir]
     local dir=${1:-.} u flags; flags=$(get_nix_flags)
