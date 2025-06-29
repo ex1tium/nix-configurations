@@ -6,7 +6,27 @@
 with lib;
 
 {
+  options.mySystem.features.virtualization = {
+    enableKvmNested = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Enable nested KVM virtualization.";
+    };
+    enableGpuPassthrough = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Enable GPU passthrough (IOMMU kernel parameters).";
+    };
+    enableKvm = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Enable KVM kernel modules (kvm-intel/kvm-amd).";
+    };
+  };
+
   config = mkIf config.mySystem.features.virtualization.enable {
+
+
     # Docker configuration
     virtualisation.docker = {
       enable = mkDefault true;

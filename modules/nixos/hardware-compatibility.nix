@@ -1,4 +1,10 @@
 # Enhanced Hardware Detection Module
+#
+# Workflow:
+# 1. The `install_machine.sh` script runs `nixos-facter --json` as root during installation.
+# 2. The JSON output is saved to `machines/<machine-name>/facter.json`.
+# 3. This module reads the static JSON file for pure, reproducible hardware detection.
+
 # Production-ready: handles real hardware and complex VM/passthrough scenarios.
 # Merges the best features of previous hardware detection modules.
 
@@ -24,8 +30,13 @@ let
   # --- Hardware detection logic based on facter data ---
 
   detectedCpuVendor = (let
-    # Example path: hardware.cpu.0.vendor = "GenuineIntel"
-    vendorString = getAttr "hardware.cpu.0.vendor" "";
+    # Get the list of CPUs, default to an empty list
+    cpus = getAttr "hardware.cpu" [];
+    # Check if the list is not empty and get the vendor name from the first CPU
+    vendorString = if cpus != [] then
+                     (lib.elemAt cpus 0).vendor_name or ""
+                   else
+                     "";
   in
   if (builtins.match ".*Intel.*" vendorString) != null then "intel"
   else if (builtins.match ".*(AMD|Advanced Micro Devices).*" vendorString) != null then "amd"
@@ -35,16 +46,16 @@ let
 
   detectedGpuVendor = (let
     graphicsCards = getAttr "hardware.graphics_card" [];
-    # Helper to check for a vendor by name in the list of graphics cards.
-    hasGpu = vendorName: builtins.any (card: (builtins.match ".*${vendorName}.*" (card.vendor or ""))) graphicsCards;
+    # Helper to check for a vendor by hex ID in the list of graphics cards.
+    hasGpuById = vendorId: builtins.any (card: (card.vendor.hex or "") == vendorId) graphicsCards;
   in
-  # Priority-based detection: NVIDIA > AMD > Intel > Virtual
-  if hasGpu "NVIDIA" then "nvidia"
-  else if hasGpu "(AMD|Advanced Micro Devices)" then "amd"
-  else if hasGpu "Intel" then "intel"
+  # Priority-based detection: NVIDIA > AMD > Intel
+  if hasGpuById "10de" then "nvidia"
+  else if hasGpuById "1002" then "amd"
+  else if hasGpuById "8086" then "intel"
   # Use the top-level virtualization key as a reliable fallback for VMs.
   else if detectedIsVirtualized then "none"
-  else "none"); # Default to none if no GPU is found.
+  else "none"); # Default to none if no real GPU is found.
 
 in
 
@@ -113,10 +124,10 @@ in
                   else [];
   in {
     # Generate appropriate KVM modules based on detected CPU
-    boot.kernelModules = optionals config.virtualisation.enableKvm kvmModules;
+    boot.kernelModules = optionals config.mySystem.features.virtualization.enableKvm kvmModules;
 
     # Generate kernel parameters for IOMMU based on detected CPU
-    boot.kernelParams = optionals config.virtualisation.enableGpuPassthrough iommuParams;
+    boot.kernelParams = optionals config.mySystem.features.virtualization.enableGpuPassthrough iommuParams;
 
     # Add warnings for debugging
     warnings = optionals cfg.debug [
