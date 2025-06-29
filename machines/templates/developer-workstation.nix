@@ -31,12 +31,21 @@ with lib;
       };
     };
 
-    # Machine-specific hardware settings (CUSTOMIZE THESE)
+    # Machine-specific hardware settings
     hardware = {
-      kernel = mkDefault "latest";  # Use latest kernel for development
-      enableVirtualization = mkDefault true;
-      enableRemoteDesktop = mkDefault false;
-      gpu = mkDefault "none";  # Set to "intel", "amd", or "nvidia" based on hardware
+      kernel = "latest"; # Use latest kernel for development
+      enableVirtualization = true;
+      enableRemoteDesktop = true;
+      # GPU auto-detected by hardware compatibility module
+      
+      # Enable automatic hardware compatibility detection
+      compatibility = {
+        enable = mkDefault true;
+        autoDetectKvm = mkDefault true;
+        autoDetectGpu = mkDefault true;
+        autoVmOptimizations = mkDefault true;
+        debug = mkDefault false; # Set to true for troubleshooting
+      };
     };
   };
 
@@ -103,7 +112,7 @@ with lib;
 
 # CUSTOMIZATION CHECKLIST:
 # [ ] Set hostname in mySystem.hostname
-# [ ] Configure GPU type in mySystem.hardware.gpu
+# [✓] GPU type automatically detected by hardware compatibility module
 # [ ] Review development languages needed
 # [ ] Add machine-specific packages
 # [ ] Configure hardware-specific optimizations

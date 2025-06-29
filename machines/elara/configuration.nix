@@ -1,6 +1,6 @@
 # Modern Configuration for 'elara' machine
 # Developer workstation with full capabilities
-# Uses the developer profile with machine-specific customizations
+# Uses the developer profile with automatic hardware detection
 
 { pkgs, ... }:
 
@@ -35,7 +35,16 @@
       kernel = "latest"; # Use latest kernel for development
       enableVirtualization = true;
       enableRemoteDesktop = true;
-      gpu = "intel"; # Set based on actual hardware
+      # GPU auto-detected by hardware compatibility module
+      
+      # Enable automatic hardware compatibility detection
+      compatibility = {
+        enable = true;
+        autoDetectKvm = true;
+        autoDetectGpu = true;
+        autoVmOptimizations = true;
+        debug = true; # Enable for testing/validation
+      };
     };
   };
 

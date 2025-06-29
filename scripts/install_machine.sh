@@ -1103,6 +1103,186 @@ final_validation() {
 
 
 
+# Hardware compatibility detection functions
+detect_cpu_vendor() {
+  local cpu_vendor="unknown"
+  
+  if [[ -f /proc/cpuinfo ]]; then
+    if grep -qi "AuthenticAMD" /proc/cpuinfo; then
+      cpu_vendor="amd"
+    elif grep -qi "GenuineIntel" /proc/cpuinfo; then
+      cpu_vendor="intel"
+    fi
+  fi
+  
+  echo "$cpu_vendor"
+}
+
+detect_virtualization() {
+  local virt_type="none"
+  
+  # Try systemd-detect-virt first
+  if command -v systemd-detect-virt >/dev/null 2>&1; then
+    virt_type=$(systemd-detect-virt 2>/dev/null || echo "none")
+  fi
+  
+  # Fallback detection methods
+  if [[ "$virt_type" == "none" ]]; then
+    if [[ -f /proc/cpuinfo ]] && grep -qi "hypervisor" /proc/cpuinfo; then
+      virt_type="vm"
+    elif [[ -d /proc/xen ]]; then
+      virt_type="xen"
+    elif [[ -f /sys/class/dmi/id/product_name ]] && grep -qi "vmware\|virtualbox\|qemu" /sys/class/dmi/id/product_name; then
+      virt_type="vm"
+    fi
+  fi
+  
+  echo "$virt_type"
+}
+
+fix_kvm_modules() {
+  local hw_config="$1"
+  local cpu_vendor="$2"
+  local virt_type="$3"
+  local backup_file="${hw_config}.backup-$(date +%Y%m%d-%H%M%S)"
+  local changes_made=false
+  
+  log_info "🔧 Analyzing KVM module compatibility..."
+  log_info "   CPU Vendor: $cpu_vendor"
+  log_info "   Virtualization: $virt_type"
+  
+  # Create backup
+  if ! cp "$hw_config" "$backup_file"; then
+    log_error "Failed to create backup of hardware configuration"
+    return 1
+  fi
+  log_info "📋 Backup created: $backup_file"
+  
+  # Check for incompatible KVM modules
+  local temp_file="$(mktemp)"
+  cp "$hw_config" "$temp_file"
+  
+  case "$cpu_vendor" in
+    "intel")
+      # Remove AMD KVM modules if present
+      if grep -q '"kvm-amd"\|"kvm_amd"' "$temp_file"; then
+        log_warn "⚠️  Found AMD KVM modules on Intel CPU - removing..."
+        sed -i '/"kvm-amd"/d; /"kvm_amd"/d' "$temp_file"
+        changes_made=true
+      fi
+      
+      # Ensure Intel KVM modules are present
+      if ! grep -q '"kvm-intel"\|"kvm_intel"' "$temp_file"; then
+        log_info "➕ Adding Intel KVM modules..."
+        # Find the kernelModules line and add kvm-intel
+        if grep -q 'boot.kernelModules = \[' "$temp_file"; then
+          sed -i '/boot.kernelModules = \[/,/\];/ {
+            /boot.kernelModules = \[/ a\
+    "kvm-intel"
+          }' "$temp_file"
+        elif grep -q 'boot.initrd.kernelModules = \[' "$temp_file"; then
+          # Add after initrd.kernelModules if kernelModules doesn't exist
+          sed -i '/boot.initrd.kernelModules = \[/,/\];/ {
+            /\];/ a\
+  boot.kernelModules = [ "kvm-intel" ];
+          }' "$temp_file"
+        else
+          # Add new kernelModules section
+          sed -i '/imports = \[/,/\];/ {
+            /\];/ a\
+\
+  boot.kernelModules = [ "kvm-intel" ];
+          }' "$temp_file"
+        fi
+        changes_made=true
+      fi
+      ;;
+      
+    "amd")
+      # Remove Intel KVM modules if present
+      if grep -q '"kvm-intel"\|"kvm_intel"' "$temp_file"; then
+        log_warn "⚠️  Found Intel KVM modules on AMD CPU - removing..."
+        sed -i '/"kvm-intel"/d; /"kvm_intel"/d' "$temp_file"
+        changes_made=true
+      fi
+      
+      # Ensure AMD KVM modules are present
+      if ! grep -q '"kvm-amd"\|"kvm_amd"' "$temp_file"; then
+        log_info "➕ Adding AMD KVM modules..."
+        # Find the kernelModules line and add kvm-amd
+        if grep -q 'boot.kernelModules = \[' "$temp_file"; then
+          sed -i '/boot.kernelModules = \[/,/\];/ {
+            /boot.kernelModules = \[/ a\
+    "kvm-amd"
+          }' "$temp_file"
+        elif grep -q 'boot.initrd.kernelModules = \[' "$temp_file"; then
+          # Add after initrd.kernelModules if kernelModules doesn't exist
+          sed -i '/boot.initrd.kernelModules = \[/,/\];/ {
+            /\];/ a\
+  boot.kernelModules = [ "kvm-amd" ];
+          }' "$temp_file"
+        else
+          # Add new kernelModules section
+          sed -i '/imports = \[/,/\];/ {
+            /\];/ a\
+\
+  boot.kernelModules = [ "kvm-amd" ];
+          }' "$temp_file"
+        fi
+        changes_made=true
+      fi
+      ;;
+      
+    *)
+      log_warn "⚠️  Unknown CPU vendor ($cpu_vendor) - skipping KVM module fixes"
+      ;;
+  esac
+  
+  # Add VM-specific kernel parameters if running in virtualization
+  if [[ "$virt_type" != "none" && "$virt_type" != "unknown" ]]; then
+    if ! grep -q 'kvm.ignore_msrs=1' "$temp_file"; then
+      log_info "🔧 Adding VM-specific kernel parameters..."
+      
+      # Check if boot.kernelParams exists
+      if grep -q 'boot.kernelParams = \[' "$temp_file"; then
+        # Add to existing kernelParams
+        sed -i '/boot.kernelParams = \[/,/\];/ {
+          /boot.kernelParams = \[/ a\
+    "kvm.ignore_msrs=1"\
+    "kvm.report_ignored_msrs=0"
+        }' "$temp_file"
+      else
+        # Add new kernelParams section
+        sed -i '/boot.kernelModules/a\
+  boot.kernelParams = [ "kvm.ignore_msrs=1" "kvm.report_ignored_msrs=0" ];' "$temp_file"
+      fi
+      changes_made=true
+    fi
+  fi
+  
+  # Apply changes if any were made
+  if $changes_made; then
+    if mv "$temp_file" "$hw_config"; then
+      log_success "✅ Hardware configuration updated successfully"
+      log_info "📝 Changes applied:"
+      [[ "$cpu_vendor" == "intel" ]] && log_info "   - Ensured Intel KVM modules"
+      [[ "$cpu_vendor" == "amd" ]] && log_info "   - Ensured AMD KVM modules"
+      [[ "$virt_type" != "none" ]] && log_info "   - Added VM compatibility parameters"
+      return 0
+    else
+      log_error "Failed to apply hardware configuration changes"
+      # Restore backup
+      cp "$backup_file" "$hw_config"
+      rm -f "$temp_file"
+      return 1
+    fi
+  else
+    log_success "✅ Hardware configuration is already compatible"
+    rm -f "$temp_file" "$backup_file"
+    return 0
+  fi
+}
+
 validate_and_fix_hardware_config() {
   log_info "Validating hardware configuration..."
 
@@ -1127,8 +1307,23 @@ validate_and_fix_hardware_config() {
     log_success "✅ Hardware-specific configuration found"
   fi
 
+  # Perform hardware compatibility detection and fixes
+  local cpu_vendor virt_type
+  cpu_vendor=$(detect_cpu_vendor)
+  virt_type=$(detect_virtualization)
+  
+  log_info "🔍 Hardware compatibility check:"
+  log_info "   CPU Vendor: $cpu_vendor"
+  log_info "   Virtualization: $virt_type"
+  
+  # Fix KVM module compatibility issues
+  if ! fix_kvm_modules "$hw_config" "$cpu_vendor" "$virt_type"; then
+    log_error "Failed to fix hardware compatibility issues"
+    return 1
+  fi
+
   if $has_filesystems && $has_hardware; then
-    log_success "✅ Hardware configuration appears complete"
+    log_success "✅ Hardware configuration appears complete and compatible"
     return 0
   elif $has_filesystems; then
     log_info "✅ Hardware configuration contains filesystem config (bootloader config is in flake)"

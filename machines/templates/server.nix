@@ -43,12 +43,21 @@ with lib;
       };
     };
 
-    # Server hardware settings
+    # Machine-specific hardware settings
     hardware = {
       kernel = mkDefault "stable";        # Stable kernel for reliability
-      enableVirtualization = mkDefault true;
+      enableVirtualization = mkDefault false;
       enableRemoteDesktop = mkDefault false;
       gpu = mkDefault "none";             # Servers typically don't need GPU
+      
+      # Enable hardware compatibility for KVM detection (useful for VMs)
+      compatibility = {
+        enable = mkDefault true;
+        autoDetectKvm = mkDefault true;
+        autoDetectGpu = mkDefault false;    # Servers don't need GPU detection
+        autoVmOptimizations = mkDefault true;
+        debug = mkDefault false;
+      };
     };
   };
 

@@ -41,12 +41,21 @@ with lib;
       };
     };
 
-    # Hardware settings optimized for older machines
+    # Machine-specific hardware settings
     hardware = {
-      kernel = mkDefault "stable";        # Stable kernel for reliability
+      kernel = mkDefault "stable";        # Use stable kernel for reliability
       enableVirtualization = mkDefault false;
       enableRemoteDesktop = mkDefault false;
-      gpu = mkDefault "none";             # Set to "intel", "amd" based on hardware
+      # GPU auto-detected by hardware compatibility module
+      
+      # Enable automatic hardware compatibility detection
+      compatibility = {
+        enable = mkDefault true;
+        autoDetectKvm = mkDefault true;
+        autoDetectGpu = mkDefault true;
+        autoVmOptimizations = mkDefault true;
+        debug = mkDefault false; # Set to true for troubleshooting
+      };
     };
   };
 
@@ -218,7 +227,7 @@ with lib;
 
 # LOW-SPEC CUSTOMIZATION CHECKLIST:
 # [ ] Set hostname in mySystem.hostname
-# [ ] Configure GPU type in mySystem.hardware.gpu (if any)
+# [✓] GPU type automatically detected by hardware compatibility module
 # [ ] Adjust memory settings based on available RAM
 # [ ] Test performance and adjust kernel parameters
 # [ ] Consider enabling development features only if needed
