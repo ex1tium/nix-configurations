@@ -104,7 +104,8 @@
   # Force X11 for SDDM/KDE to avoid Wayland instability in VMs
   services.displayManager.sddm.wayland.enable = lib.mkForce false;
 
-  # Force-enable sudo wrappers to fix 'setuid' error
+  # Force-enable sudo wrappers to fix 'setuid' error. This is necessary
+  # to resolve a deep, implicit conflict from the NixOS module system.
   security.sudo.enable = lib.mkForce true;
 
   # Machine-specific networking
