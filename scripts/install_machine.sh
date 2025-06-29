@@ -931,7 +931,9 @@ generate_hw_config() {
     return 0
   fi
 
-  # Generate hardware configuration
+  # Generate fresh hardware configuration for current hardware/partitioning
+  # This will be copied to the repository during nixos-install to ensure
+  # the correct UUIDs and hardware settings are used
   log_info "Running nixos-generate-config..."
   sudo nixos-generate-config --root /mnt >/dev/null
 
@@ -946,6 +948,57 @@ generate_hw_config() {
   validate_and_fix_hardware_config
 }
 
+preview_hardware_config() {
+  local generated_hw_config="/mnt/etc/nixos/hardware-configuration.nix"
+
+  if [[ ! -f "$generated_hw_config" ]]; then
+    log_error "Generated hardware config not found at $generated_hw_config"
+    return 1
+  fi
+
+  echo
+  print_box "$CYAN" "📋 HARDWARE CONFIGURATION PREVIEW" \
+    "${WHITE}The following hardware configuration will be used for installation:"
+  echo
+
+  # Show key parts of the hardware config
+  log_info "🔍 Key configuration details:"
+  echo
+
+  # Show filesystem configurations
+  if grep -q "fileSystems" "$generated_hw_config"; then
+    echo "${CYAN}📁 Filesystems:${NC}"
+    grep -A 2 'fileSystems\.' "$generated_hw_config" | sed 's/^/  /'
+    echo
+  fi
+
+  # Show boot configuration
+  if grep -q "boot\." "$generated_hw_config"; then
+    echo "${CYAN}🚀 Boot configuration:${NC}"
+    grep "boot\." "$generated_hw_config" | head -5 | sed 's/^/  /'
+    echo
+  fi
+
+  # Show if LUKS is configured
+  if grep -q "luks" "$generated_hw_config"; then
+    echo "${CYAN}🔒 Encryption detected:${NC}"
+    grep "luks" "$generated_hw_config" | sed 's/^/  /'
+    echo
+  fi
+
+  # Ask for confirmation
+  echo "${YELLOW}📝 Full hardware configuration:${NC}"
+  echo "${DIM}(First 20 lines - full config will be used for installation)${NC}"
+  head -20 "$generated_hw_config" | sed 's/^/  /'
+  echo "  ${DIM}... (truncated)${NC}"
+  echo
+
+  if ! confirm "Do you want to proceed with this hardware configuration?"; then
+    log_warn "Installation cancelled by user"
+    return 1
+  fi
+}
+
 install_nixos() {
   next_step "nixos-install"
 
@@ -954,7 +1007,59 @@ install_nixos() {
      return
   fi
 
+  # Preview and confirm hardware configuration
+  preview_hardware_config || return 1
+
+  # Copy the newly generated hardware config to overwrite the old one in the repo
+  local generated_hw_config="/mnt/etc/nixos/hardware-configuration.nix"
+  local repo_hw_config="machines/$SELECTED_MACHINE/hardware-configuration.nix"
+
+  if [[ -f "$generated_hw_config" ]]; then
+    log_info "Copying fresh hardware config to repository..."
+    cp "$generated_hw_config" "$repo_hw_config"
+    log_success "Updated $repo_hw_config with fresh hardware configuration"
+  else
+    log_error "Generated hardware config not found at $generated_hw_config"
+    return 1
+  fi
+
   sudo nixos-install --no-root-password --flake ".#$SELECTED_MACHINE" --root /mnt
+}
+
+offer_hardware_config_commit() {
+  local repo_hw_config="machines/$SELECTED_MACHINE/hardware-configuration.nix"
+
+  echo
+  print_box "$CYAN" "💾 HARDWARE CONFIGURATION BACKUP" \
+    "${WHITE}The fresh hardware configuration has been generated for this installation." \
+    "" \
+    "${YELLOW}Would you like to commit it back to the repository?" \
+    "${DIM}This creates a backup and allows sharing the config with other systems."
+
+  if confirm "Commit hardware configuration to repository?"; then
+    log_info "Committing hardware configuration..."
+
+    if git add "$repo_hw_config" && git commit -m "Update hardware config for $SELECTED_MACHINE
+
+Generated during installation on $(date)
+- Fresh UUIDs for current partitioning
+- Current hardware detection
+- Installation mode: $INSTALLATION_MODE"; then
+      log_success "Hardware configuration committed to repository"
+
+      if confirm "Push changes to remote repository?"; then
+        if git push; then
+          log_success "Changes pushed to remote repository"
+        else
+          log_warn "Failed to push to remote - you may need to push manually later"
+        fi
+      fi
+    else
+      log_warn "Failed to commit hardware configuration"
+    fi
+  else
+    log_info "Hardware configuration not committed (local copy updated only)"
+  fi
 }
 
 final_validation() {
@@ -965,6 +1070,9 @@ final_validation() {
 
   # Post-installation validation
   validate_installation
+
+  # Offer to commit hardware config back to repo
+  offer_hardware_config_commit
 
   echo
 
