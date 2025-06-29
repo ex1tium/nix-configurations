@@ -36,6 +36,9 @@ main() {
     # Step 1: Detect the problematic installation
     detect_installation
 
+    # Step 1.5: Diagnose the current state
+    diagnose_current_state
+
     # Step 2: Mount the filesystem
     mount_filesystem
 
@@ -49,6 +52,38 @@ main() {
     cleanup_mounts
 
     log_success "Boot repair completed! Try rebooting now."
+}
+
+diagnose_current_state() {
+    log_info "Diagnosing current BTRFS state..."
+
+    # Check what's actually on the BTRFS filesystem
+    log_info "Mounting $ROOT_DEVICE to inspect contents..."
+    mkdir -p /tmp/btrfs_inspect
+
+    if mount "$ROOT_DEVICE" /tmp/btrfs_inspect; then
+        log_info "Contents of BTRFS root:"
+        ls -la /tmp/btrfs_inspect/
+
+        log_info "Checking for subvolumes:"
+        btrfs subvolume list /tmp/btrfs_inspect 2>/dev/null || log_warn "No subvolumes found"
+
+        log_info "Checking for system files:"
+        if [[ -d /tmp/btrfs_inspect/etc ]]; then
+            log_info "Found /etc directory - system files exist in root"
+        fi
+
+        if [[ -d /tmp/btrfs_inspect/@root ]]; then
+            log_info "Found @root subvolume directory"
+            ls -la /tmp/btrfs_inspect/@root/ | head -5
+        fi
+
+        umount /tmp/btrfs_inspect
+    else
+        log_error "Failed to mount $ROOT_DEVICE for inspection"
+    fi
+
+    rmdir /tmp/btrfs_inspect
 }
 
 detect_installation() {
