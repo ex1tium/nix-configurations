@@ -23,7 +23,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 ###############################################################################
 readonly SCRIPT_VERSION="3.0.0"
 readonly REPO_URL_DEFAULT="https://github.com/ex1tium/nix-configurations.git"
-readonly TOTAL_STEPS=14
+readonly TOTAL_STEPS=15
 
 REPO_URL=$REPO_URL_DEFAULT
 REPO_BRANCH="main"
@@ -463,17 +463,122 @@ validate_clean_disk_state() {
 }
 
 ###############################################################################
-# 8.  Partitioning helpers
+# 8.  Device and filesystem helpers
+###############################################################################
+wait_for_device() {
+  local device=$1
+  local timeout=30
+  local count=0
+
+  log_info "Waiting for device $device to be ready..."
+
+  while [[ ! -b $device ]] && (( count < timeout )); do
+    sleep 1
+    ((count++))
+  done
+
+  if [[ ! -b $device ]]; then
+    log_error "Device $device not available after ${timeout}s"
+    return 1
+  fi
+
+  # Additional wait for device to be fully ready
+  sleep 2
+  log_info "Device $device is ready"
+  return 0
+}
+
+verify_mounts() {
+  log_info "Verifying filesystem mounts..."
+
+  # Check that root is mounted
+  if ! mountpoint -q /mnt; then
+    log_error "Root filesystem not mounted at /mnt"
+    return 1
+  fi
+
+  # Check that boot is mounted
+  if ! mountpoint -q /mnt/boot; then
+    log_error "Boot filesystem not mounted at /mnt/boot"
+    return 1
+  fi
+
+  # For BTRFS, verify subvolume mounts
+  if [[ $SELECTED_FILESYSTEM == "btrfs" ]]; then
+    local required_mounts=("/mnt/home" "/mnt/nix" "/mnt/.snapshots")
+    for mount_point in "${required_mounts[@]}"; do
+      if ! mountpoint -q "$mount_point"; then
+        log_error "BTRFS subvolume not mounted at $mount_point"
+        return 1
+      fi
+    done
+  fi
+
+  # Verify we can write to the mounted filesystems
+  if ! sudo touch /mnt/test_write 2>/dev/null; then
+    log_error "Cannot write to root filesystem"
+    return 1
+  fi
+  sudo rm -f /mnt/test_write
+
+  log_info "All filesystem mounts verified successfully"
+  return 0
+}
+
+refresh_partition_table() {
+  local disk=$1
+
+  log_info "Refreshing partition table for $disk..."
+
+  if is_dry_run; then
+    log_info "DRY-RUN: Would refresh partition table"
+    return 0
+  fi
+
+  # Use multiple methods to ensure partition table is refreshed
+  sudo partprobe "$disk" 2>/dev/null || true
+  sudo udevadm settle 2>/dev/null || true
+
+  # Give the kernel time to recognize new partitions
+  sleep 3
+
+  # Verify partitions are visible
+  if ! lsblk "$disk" | grep -q "$(basename "$disk")[0-9]"; then
+    log_warn "Partitions not immediately visible, waiting longer..."
+    sleep 5
+  fi
+
+  log_info "Partition table refresh completed"
+}
+
+###############################################################################
+# 9.  Partitioning helpers
 ###############################################################################
 partition_disk_fresh() {
   create_fresh_partitions "$SELECTED_DISK"
+
+  # Ensure partition table is refreshed and devices are available
+  refresh_partition_table "$SELECTED_DISK"
+
   ESP_PARTITION="${SELECTED_DISK}1"
   ROOT_PARTITION="${SELECTED_DISK}2"
+
+  # Verify partitions exist
+  wait_for_device "$ESP_PARTITION"
+  wait_for_device "$ROOT_PARTITION"
 }
 
 partition_disk_dual_boot() {
   ESP_PARTITION=$(create_dual_boot_partitions "$SELECTED_DISK")
+
+  # Ensure partition table is refreshed
+  refresh_partition_table "$SELECTED_DISK"
+
   ROOT_PARTITION=$(get_root_partition "$SELECTED_DISK" dual-boot)
+
+  # Verify partitions exist
+  wait_for_device "$ESP_PARTITION"
+  wait_for_device "$ROOT_PARTITION"
 }
 
 partition_disk_manual() {
@@ -493,10 +598,21 @@ partition_disk_manual() {
 
 setup_btrfs() {
   local dev=$1
+
+  # Wait for device to be ready
+  wait_for_device "$dev"
+
   dry_run_cmd sudo mkfs.btrfs -f -L nixos "$dev"
+
+  # Wait for filesystem to be recognized
+  sleep 2
+
   dry_run_cmd sudo mount "$dev" /mnt
   for sv in @root @home @nix @snapshots; do dry_run_cmd sudo btrfs subvolume create /mnt/$sv; done
   dry_run_cmd sudo umount /mnt
+
+  # Wait before remounting
+  sleep 1
 
   dry_run_cmd sudo mount -o subvol=@root,compress=zstd "$dev" /mnt
   dry_run_cmd sudo mkdir -p /mnt/{home,nix,.snapshots,boot}
@@ -509,30 +625,48 @@ setup_filesystem() {
   print_step 12 "$TOTAL_STEPS" "Create filesystem & mount"
   local part=$ROOT_PARTITION
 
+  # Wait for root partition to be available
+  wait_for_device "$ROOT_PARTITION"
+
   if (( ENABLE_ENCRYPTION )); then
      dry_run_cmd sudo cryptsetup -q luksFormat "$part" --type luks2
      dry_run_cmd sudo cryptsetup open "$part" cryptroot
      part=/dev/mapper/cryptroot
+
+     # Wait for encrypted device
+     wait_for_device "$part"
   fi
 
   if [[ $SELECTED_FILESYSTEM == btrfs ]]; then
       setup_btrfs "$part"
   else
+      # Wait for device before formatting
+      wait_for_device "$part"
       dry_run_cmd sudo mkfs.ext4 -F -L nixos "$part"
+
+      # Wait for filesystem to be recognized
+      sleep 2
+
       dry_run_cmd sudo mount "$part" /mnt
       dry_run_cmd sudo mkdir -p /mnt/boot
   fi
 
+  # Wait for ESP partition and mount
+  wait_for_device "$ESP_PARTITION"
   dry_run_cmd sudo mount "$ESP_PARTITION" /mnt/boot
 
   if [[ -n $HOME_PARTITION ]]; then
+      wait_for_device "$HOME_PARTITION"
       dry_run_cmd sudo mkdir -p /mnt/home
       dry_run_cmd sudo mount "$HOME_PARTITION" /mnt/home
   fi
+
+  # Final verification that all mounts are successful
+  verify_mounts
 }
 
 ###############################################################################
-# 9.  User override & build validation
+# 10.  User override & build validation
 ###############################################################################
 configure_user_override() {
   PRIMARY_USER=${PRIMARY_USER:-$(detect_primary_user_from_flake .)}
@@ -547,11 +681,21 @@ dry_run_build() {
 }
 
 ###############################################################################
-# 10.  HW config & installation
+# 11.  HW config & installation
 ###############################################################################
 generate_hw_config() {
   print_step 13 "$TOTAL_STEPS" "Generate hardware-configuration.nix"
-  dry_run_cmd sudo nixos-generate-config --root /mnt >/dev/null
+
+  if is_dry_run; then
+    log_info "DRY-RUN: Would generate hardware configuration"
+    return 0
+  fi
+
+  # Generate hardware configuration
+  sudo nixos-generate-config --root /mnt >/dev/null
+
+  # Validate and fix hardware configuration
+  validate_and_fix_hardware_config
 }
 
 install_nixos() {
@@ -563,11 +707,248 @@ install_nixos() {
   fi
 
   sudo nixos-install --no-root-password --flake ".#$SELECTED_MACHINE" --root /mnt
+}
+
+final_validation() {
+  print_step 15 "$TOTAL_STEPS" "Final validation and cleanup"
+
+  if is_dry_run; then
+    log_info "DRY-RUN: Would perform final validation"
+    return 0
+  fi
+
+  # Post-installation validation
+  validate_installation
+
   echo -e "${GREEN}🎉 Installation complete – reboot when ready.${NC}"
 }
 
 ###############################################################################
-# 11.  Main orchestration
+# 12.  Post-installation validation
+###############################################################################
+validate_and_fix_hardware_config() {
+  log_info "Validating and fixing hardware configuration..."
+
+  local hw_config="/mnt/etc/nixos/hardware-configuration.nix"
+
+  if [[ ! -f $hw_config ]]; then
+    log_error "Hardware configuration not found at $hw_config"
+    return 1
+  fi
+
+  # Check for correct filesystem UUIDs
+  log_info "Verifying filesystem UUIDs in hardware configuration..."
+
+  # Get actual UUIDs from mounted filesystems
+  local root_uuid esp_uuid
+  root_uuid=$(findmnt -n -o UUID /mnt)
+  esp_uuid=$(findmnt -n -o UUID /mnt/boot)
+
+  log_info "Detected UUIDs - Root: $root_uuid, ESP: $esp_uuid"
+
+  # Verify UUIDs exist in hardware config
+  if [[ -n $root_uuid ]] && ! grep -q "$root_uuid" "$hw_config"; then
+    log_warn "Root filesystem UUID $root_uuid not found in hardware config"
+    log_info "This may cause boot failures - regenerating hardware config..."
+
+    # Regenerate hardware config
+    sudo nixos-generate-config --root /mnt --force >/dev/null
+
+    # Verify again
+    if ! grep -q "$root_uuid" "$hw_config"; then
+      log_error "Failed to fix hardware configuration - manual intervention required"
+      return 1
+    fi
+  fi
+
+  # For BTRFS, ensure subvolume options are correct
+  if [[ $SELECTED_FILESYSTEM == "btrfs" ]]; then
+    log_info "Validating BTRFS subvolume configuration..."
+
+    # Check that subvolume options are present
+    if ! grep -q "subvol=@root" "$hw_config"; then
+      log_warn "BTRFS subvolume options missing from hardware config"
+      fix_btrfs_hardware_config "$hw_config"
+    fi
+  fi
+
+  log_info "Hardware configuration validation completed"
+}
+
+fix_btrfs_hardware_config() {
+  local hw_config=$1
+
+  log_info "Fixing BTRFS hardware configuration..."
+
+  # Create a backup
+  sudo cp "$hw_config" "${hw_config}.backup"
+
+  # Get the root device UUID
+  local root_uuid
+  root_uuid=$(findmnt -n -o UUID /mnt)
+
+  if [[ -z $root_uuid ]]; then
+    log_error "Cannot determine root filesystem UUID"
+    return 1
+  fi
+
+  # Create corrected hardware config with proper BTRFS subvolume options
+  sudo tee "${hw_config}.new" > /dev/null << EOF
+# Do not modify this file!  It was generated by 'nixos-generate-config'
+# and may be overwritten by future invocations.  Please make changes
+# to /etc/nixos/configuration.nix instead.
+{ config, lib, pkgs, modulesPath, ... }:
+
+{
+  imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
+
+  boot.initrd.availableKernelModules = [ "ahci" "xhci_pci" "virtio_pci" "sr_mod" "virtio_blk" ];
+  boot.initrd.kernelModules = [ ];
+  boot.kernelModules = [ "kvm-intel" ];
+  boot.extraModulePackages = [ ];
+
+  fileSystems."/" = {
+    device = "/dev/disk/by-uuid/$root_uuid";
+    fsType = "btrfs";
+    options = [ "subvol=@root" "compress=zstd" ];
+  };
+
+  fileSystems."/home" = {
+    device = "/dev/disk/by-uuid/$root_uuid";
+    fsType = "btrfs";
+    options = [ "subvol=@home" "compress=zstd" ];
+  };
+
+  fileSystems."/nix" = {
+    device = "/dev/disk/by-uuid/$root_uuid";
+    fsType = "btrfs";
+    options = [ "subvol=@nix" "compress=zstd" ];
+  };
+
+  fileSystems."/.snapshots" = {
+    device = "/dev/disk/by-uuid/$root_uuid";
+    fsType = "btrfs";
+    options = [ "subvol=@snapshots" "compress=zstd" ];
+  };
+
+  fileSystems."/boot" = {
+    device = "/dev/disk/by-uuid/$(findmnt -n -o UUID /mnt/boot)";
+    fsType = "vfat";
+    options = [ "fmask=0022" "dmask=0022" ];
+  };
+
+  swapDevices = [ ];
+
+  networking.useDHCP = lib.mkDefault true;
+  nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+  hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
+}
+EOF
+
+  # Replace the original with the fixed version
+  sudo mv "${hw_config}.new" "$hw_config"
+
+  log_info "BTRFS hardware configuration fixed"
+}
+
+verify_bootloader_installation() {
+  log_info "Verifying bootloader installation..."
+
+  # Check for UEFI bootloader files
+  local bootloader_found=false
+
+  if [[ -d /mnt/boot/EFI ]] || [[ -d /mnt/boot/efi ]]; then
+    log_info "UEFI bootloader directory found"
+    bootloader_found=true
+
+    # Check for systemd-boot
+    if [[ -f /mnt/boot/EFI/systemd/systemd-bootx64.efi ]] || [[ -f /mnt/boot/efi/EFI/systemd/systemd-bootx64.efi ]]; then
+      log_info "systemd-boot detected"
+
+      # Verify loader entries exist
+      local loader_entries_dir="/mnt/boot/loader/entries"
+      if [[ -d $loader_entries_dir ]] && [[ -n $(ls -A "$loader_entries_dir" 2>/dev/null) ]]; then
+        log_info "Boot entries found"
+      else
+        log_warn "No boot entries found - this will cause boot failure"
+        return 1
+      fi
+
+    # Check for GRUB
+    elif [[ -f /mnt/boot/EFI/BOOT/BOOTX64.EFI ]] || [[ -f /mnt/boot/efi/EFI/BOOT/BOOTX64.EFI ]]; then
+      log_info "GRUB bootloader detected"
+
+    else
+      log_warn "UEFI directory exists but no recognized bootloader found"
+      bootloader_found=false
+    fi
+  fi
+
+  if ! $bootloader_found; then
+    log_error "No bootloader installation detected - system will not boot"
+    log_error "This indicates a serious installation problem"
+    return 1
+  fi
+
+  log_info "Bootloader verification completed successfully"
+  return 0
+}
+
+validate_installation() {
+  log_info "Performing post-installation validation..."
+
+  # 1. Verify all mount points are accessible
+  log_info "Checking mount points..."
+  if ! mountpoint -q /mnt; then
+    log_error "Root filesystem not mounted at /mnt"
+    return 1
+  fi
+
+  if ! mountpoint -q /mnt/boot; then
+    log_error "Boot filesystem not mounted at /mnt/boot"
+    return 1
+  fi
+
+  # 2. Verify hardware configuration exists and is valid
+  if [[ ! -f /mnt/etc/nixos/hardware-configuration.nix ]]; then
+    log_error "Hardware configuration missing"
+    return 1
+  fi
+
+  # 3. Verify bootloader installation
+  log_info "Checking bootloader installation..."
+  verify_bootloader_installation
+
+  # 4. Verify filesystem UUIDs match between fstab and actual devices
+  log_info "Verifying filesystem UUID consistency..."
+  local hw_config="/mnt/etc/nixos/hardware-configuration.nix"
+  local root_uuid esp_uuid
+
+  root_uuid=$(findmnt -n -o UUID /mnt)
+  esp_uuid=$(findmnt -n -o UUID /mnt/boot)
+
+  if [[ -n $root_uuid ]] && ! grep -q "$root_uuid" "$hw_config"; then
+    log_error "Root filesystem UUID mismatch detected"
+    return 1
+  fi
+
+  if [[ -n $esp_uuid ]] && ! grep -q "$esp_uuid" "$hw_config"; then
+    log_error "ESP filesystem UUID mismatch detected"
+    return 1
+  fi
+
+  # 5. Test that the configuration can be evaluated
+  log_info "Testing configuration evaluation..."
+  if ! sudo chroot /mnt /run/current-system/sw/bin/nixos-rebuild dry-build --fast &>/dev/null; then
+    log_warn "Configuration evaluation test failed - there may be configuration issues"
+  fi
+
+  log_info "Post-installation validation completed successfully"
+  return 0
+}
+
+###############################################################################
+# 13.  Main orchestration
 ###############################################################################
 main() {
   parse_arguments "$@"
@@ -599,6 +980,7 @@ main() {
   dry_run_build
   generate_hw_config
   install_nixos
+  final_validation
   cleanup_and_exit 0
 }
 
