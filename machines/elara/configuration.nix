@@ -2,7 +2,7 @@
 # Developer workstation with full capabilities
 # Uses the developer profile with automatic hardware detection
 
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 {
   # Machine-specific overrides for the developer profile
@@ -56,6 +56,9 @@
 
   # Performance optimizations for VM
   boot = {
+    # Ensure VirtIO GPU driver is available in early boot for console
+    initrd.availableKernelModules = [ "virtio_gpu" ];
+
     kernelParams = [
       "elevator=noop" # Better for VMs
       "intel_idle.max_cstate=1" # Better VM performance
@@ -94,6 +97,12 @@
       openFirewall = true;
     };
   };
+
+  # Xorg Server configuration for VM stability
+  services.xserver.videoDrivers = [ "modesetting" ];
+
+  # Force X11 for SDDM/KDE to avoid Wayland instability in VMs
+  services.displayManager.sddm.wayland.enable = lib.mkForce false;
 
   # Machine-specific networking
   networking = {

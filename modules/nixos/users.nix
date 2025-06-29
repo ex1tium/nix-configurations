@@ -1,7 +1,7 @@
 # Users NixOS Module
 # User account management and configuration
 
-{ config, lib, pkgs, globalConfig ? {}, ... }:
+{ config, lib, pkgs, ... }:
 
 with lib;
 
@@ -12,6 +12,7 @@ with lib;
       isNormalUser = true;
       description = mkDefault config.mySystem.user;
       home = mkDefault "/home/${config.mySystem.user}";
+      initialPassword = mkDefault "password";
 
       # Base groups for all users (core groups only)
       extraGroups = mkDefault [
