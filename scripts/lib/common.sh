@@ -77,6 +77,11 @@ confirm_action() {                  # confirm_action <prompt> [default=y|n]
     [[ $ans =~ ^[Yy] ]]
 }
 
+# Alias for confirm_action to maintain compatibility
+confirm() {
+    confirm_action "$@"
+}
+
 print_header() {                    # print_header [title] [version]
     (( QUIET )) && return
     local title=${1:-NixOS Installation Utility}

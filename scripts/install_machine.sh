@@ -1023,7 +1023,14 @@ install_nixos() {
     return 1
   fi
 
-  sudo nixos-install --no-root-password --flake ".#$SELECTED_MACHINE" --root /mnt
+  log_info "Starting NixOS installation..."
+  if sudo nixos-install --no-root-password --flake ".#$SELECTED_MACHINE" --root /mnt; then
+    log_success "NixOS installation completed successfully!"
+    return 0
+  else
+    log_error "NixOS installation failed!"
+    return 1
+  fi
 }
 
 offer_hardware_config_commit() {
@@ -1440,7 +1447,7 @@ main() {
   configure_user_override
   dry_run_build
   generate_hw_config
-  install_nixos
+  install_nixos || { log_error "Installation failed"; cleanup_and_exit 1; }
   final_validation
   cleanup_and_exit 0
 }
