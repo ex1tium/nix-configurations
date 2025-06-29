@@ -1424,8 +1424,8 @@ main() {
 
   setup_filesystem
   configure_user_override
-  dry_run_build
   generate_hw_config
+  dry_run_build
   install_nixos || { log_error "Installation failed"; cleanup_and_exit 1; }
   final_validation
   cleanup_and_exit 0
