@@ -184,8 +184,8 @@ in
     (mkIf (gpuType == "none") {
       # Minimal graphics support for headless/VM environments
       hardware.graphics = {
-        enable = mkDefault false;  # Disable hardware graphics acceleration
-        enable32Bit = mkDefault false;
+        enable = mkForce false;   # Force disable hardware graphics acceleration
+        enable32Bit = mkForce false;  # Force disable 32-bit support (overrides common.nix)
       };
       
       # Ensure no GPU-specific kernel modules are loaded
