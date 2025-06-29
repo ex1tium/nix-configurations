@@ -33,7 +33,7 @@ TOTAL_STEPS=0
 # Calculate total steps dynamically based on execution path
 calculate_total_steps() {
   # Fixed total steps for now - can be made dynamic later if needed
-  TOTAL_STEPS=14
+  TOTAL_STEPS=15
   export TOTAL_STEPS
 }
 
