@@ -655,12 +655,23 @@ setup_btrfs() {
   # Create subvolumes with explicit error checking
   for sv in @root @home @nix @snapshots; do
     log_info "Creating BTRFS subvolume: $sv"
-    dry_run_cmd sudo btrfs subvolume create "/mnt/$sv"
 
-    # Verify subvolume was created
-    if ! is_dry_run && ! sudo btrfs subvolume show "/mnt/$sv" &>/dev/null; then
-      log_error "Failed to create BTRFS subvolume: $sv"
-      exit 1
+    if is_dry_run; then
+      log_info "DRY-RUN: Would create BTRFS subvolume $sv"
+    else
+      # Execute the command directly with error checking
+      if ! sudo btrfs subvolume create "/mnt/$sv"; then
+        log_error "Failed to create BTRFS subvolume: $sv"
+        exit 1
+      fi
+
+      # Verify subvolume was created
+      if ! sudo btrfs subvolume show "/mnt/$sv" &>/dev/null; then
+        log_error "BTRFS subvolume $sv was not created properly"
+        exit 1
+      fi
+
+      log_success "BTRFS subvolume $sv created successfully"
     fi
   done
 
