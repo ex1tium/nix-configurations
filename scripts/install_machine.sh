@@ -1217,11 +1217,19 @@ validate_and_fix_hardware_config() {
     # Use blkid with retry logic
     local retry_count=0
     while [[ $retry_count -lt 5 ]]; do
+      # Try multiple methods for UUID detection (especially important for BTRFS)
       root_uuid=$(blkid -s UUID -o value "$root_device" 2>/dev/null)
+
+      # If blkid fails, try findmnt as alternative (works better with mounted BTRFS)
+      if [[ -z $root_uuid ]]; then
+        root_uuid=$(findmnt -n -o UUID /mnt 2>/dev/null)
+      fi
+
       if [[ -n $root_uuid ]] && [[ -e "/dev/disk/by-uuid/$root_uuid" ]]; then
         break
       fi
       log_info "Waiting for root UUID to be available (attempt $((retry_count + 1))/5)..."
+      log_info "  Trying device: $root_device"
       sleep 2
       sudo udevadm settle
       ((retry_count++))
@@ -1236,11 +1244,19 @@ validate_and_fix_hardware_config() {
     # Use blkid with retry logic
     local retry_count=0
     while [[ $retry_count -lt 5 ]]; do
+      # Try multiple methods for ESP UUID detection
       esp_uuid=$(blkid -s UUID -o value "$esp_device" 2>/dev/null)
+
+      # If blkid fails, try findmnt as alternative
+      if [[ -z $esp_uuid ]]; then
+        esp_uuid=$(findmnt -n -o UUID /mnt/boot 2>/dev/null)
+      fi
+
       if [[ -n $esp_uuid ]] && [[ -e "/dev/disk/by-uuid/$esp_uuid" ]]; then
         break
       fi
       log_info "Waiting for ESP UUID to be available (attempt $((retry_count + 1))/5)..."
+      log_info "  Trying device: $esp_device"
       sleep 2
       sudo udevadm settle
       ((retry_count++))
@@ -1249,6 +1265,17 @@ validate_and_fix_hardware_config() {
 
   log_info "Detected devices - Root: $root_device, ESP: $esp_device"
   log_info "Detected UUIDs - Root: $root_uuid, ESP: $esp_uuid"
+
+  # Debug: Show filesystem information
+  if [[ -n $root_device ]]; then
+    log_info "Root device filesystem info:"
+    blkid "$root_device" 2>/dev/null || log_warn "  blkid failed for $root_device"
+  fi
+
+  if [[ -n $esp_device ]]; then
+    log_info "ESP device filesystem info:"
+    blkid "$esp_device" 2>/dev/null || log_warn "  blkid failed for $esp_device"
+  fi
 
   # Validate UUIDs are accessible (with fallback)
   if [[ -n $root_uuid ]] && [[ ! -e "/dev/disk/by-uuid/$root_uuid" ]]; then

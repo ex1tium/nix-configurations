@@ -55,6 +55,13 @@
       let
         machineConfig = machines.${hostname};
         profileModule = ./modules/profiles/${machineConfig.profile}.nix;
+
+        # Check if hardware-configuration.nix exists, use template if not
+        hardwareConfigPath = ./machines/${hostname}/hardware-configuration.nix;
+        hardwareConfigExists = builtins.pathExists hardwareConfigPath;
+        hardwareModule = if hardwareConfigExists
+          then hardwareConfigPath
+          else ./machines/templates/hardware-template.nix;
       in
       nixpkgs.lib.nixosSystem {
         inherit system;
@@ -65,8 +72,9 @@
         modules = [
           # Apply custom overlays
           { nixpkgs.overlays = [ (import ./modules/overlays/custom-overlay.nix) ]; }
-          # Hardware configuration
-          ./machines/${hostname}/hardware-configuration.nix
+
+          # Hardware configuration (actual or template)
+          hardwareModule
 
           # Machine-specific configuration
           ./machines/${hostname}/configuration.nix
