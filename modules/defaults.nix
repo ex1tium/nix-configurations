@@ -174,10 +174,19 @@ with lib;
     enableMicrocode = true;          # Microcode updates enabled
     cpuGovernor = "ondemand";        # Balanced CPU governor
     
-    # GPU defaults
-    gpu = "none";                    # No specific GPU optimization by default
+    # GPU defaults - AUTO-DETECTED by hardware compatibility module
+    gpu = "auto";                    # Auto-detected by hardware compatibility module
     enableOpenGL = true;             # OpenGL support enabled
     enable32BitOpenGL = true;        # 32-bit OpenGL for compatibility
+    
+    # Hardware compatibility defaults - ENABLED BY DEFAULT
+    compatibility = {
+      enable = true;                 # Hardware compatibility enabled by default
+      autoDetectKvm = true;          # Auto-detect KVM modules by default  
+      autoDetectGpu = true;          # Auto-detect GPU by default
+      autoVmOptimizations = true;    # Auto-apply VM optimizations by default
+      debug = false;                 # Debug disabled by default
+    };
     
     # Virtualization defaults
     enableVirtualization = false;    # Hardware virtualization disabled by default
