@@ -42,10 +42,31 @@ ENCRYPT="no"        # "yes" enables LUKS2 for root
 ###############################################################################
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --fs)      FS_TYPE="$2"; shift 2 ;;
+    --fs)
+      if [[ -n "${2:-}" ]]; then
+        FS_TYPE="$2"; shift 2
+      else
+        echo "❌ --fs requires a value (ext4|btrfs|xfs)"; exit 1
+      fi
+      ;;
     --encrypt) ENCRYPT="yes"; shift ;;
-    --branch)  REPO_BRANCH="$2"; shift 2 ;;
-    *) echo "Unknown flag: $1"; exit 1 ;;
+    --branch)
+      if [[ -n "${2:-}" ]]; then
+        REPO_BRANCH="$2"; shift 2
+      else
+        echo "❌ --branch requires a value"; exit 1
+      fi
+      ;;
+    --help|-h)
+      echo "Usage: $0 [--fs ext4|btrfs|xfs] [--encrypt] [--branch <git_branch>]"
+      echo "  --fs       Filesystem type (default: btrfs)"
+      echo "  --encrypt  Enable LUKS2 encryption"
+      echo "  --branch   Git branch to use (default: main)"
+      exit 0
+      ;;
+    --) shift; break ;;  # End of options
+    -*) echo "❌ Unknown option: $1"; echo "Use --help for usage"; exit 1 ;;
+    *) break ;;  # Non-option argument, stop processing
   esac
 done
 [[ $FS_TYPE =~ ^(ext4|btrfs|xfs)$ ]] || { echo "❌ Unsupported --fs=$FS_TYPE"; exit 1; }
@@ -77,7 +98,17 @@ if (( ${#MISSING[@]} )); then
   SCRIPT_PATH=$(mktemp)
   cat "$0" > "$SCRIPT_PATH"
   chmod +x "$SCRIPT_PATH"
-  exec nix-shell -p "${MISSING[@]}" --run "bash \"$SCRIPT_PATH\" \"$@\""
+  # Pass original arguments, filtering out any problematic ones
+  CLEAN_ARGS=()
+  for arg in "$@"; do
+    case "$arg" in
+      --fs|--encrypt|--branch) CLEAN_ARGS+=("$arg") ;;
+      --fs=*|--branch=*) CLEAN_ARGS+=("$arg") ;;
+      -*) ;; # Skip unknown flags
+      *) CLEAN_ARGS+=("$arg") ;;
+    esac
+  done
+  exec nix-shell -p "${MISSING[@]}" --run "bash \"$SCRIPT_PATH\" ${CLEAN_ARGS[*]}"
 fi
 
 # Verify all required tools are available
