@@ -107,7 +107,7 @@
 
     sddm = {
       enable = true;
-      wayland.enable = false; # allow Wayland greeter
+      wayland.enable = lib.mkForce false; # greeter uses X11 for VNC visibility
       settings = {
         General = {
           DisplayServer = "x11";
