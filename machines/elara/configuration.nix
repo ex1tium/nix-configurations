@@ -102,7 +102,17 @@
   services.xserver.videoDrivers = [ "modesetting" ];
 
   # Force X11 for SDDM/KDE to avoid Wayland instability in VMs
-  services.displayManager.sddm.wayland.enable = lib.mkForce false;
+  # Force SDDM to use X11 and software rendering in this VM
+  services.displayManager.sddm = {
+    wayland.enable = lib.mkForce false;
+    settings = {
+      General = { DisplayServer = "x11"; };
+      X11 = {
+        # Ensure the greeter runs with software GL to avoid llvmpipe/Qt crashes
+        SessionCommand = "export LIBGL_ALWAYS_SOFTWARE=1";
+      };
+    };
+  };
 
 
   # Machine-specific networking
