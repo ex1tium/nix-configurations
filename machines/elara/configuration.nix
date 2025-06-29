@@ -106,10 +106,10 @@
   services.displayManager.sddm = {
     wayland.enable = lib.mkForce false;
     settings = {
-      General = { DisplayServer = "x11"; };
-      X11 = {
-        # Ensure the greeter runs with software GL to avoid llvmpipe/Qt crashes
-        SessionCommand = "export LIBGL_ALWAYS_SOFTWARE=1";
+      General = {
+        DisplayServer = "x11";
+        # Force software GL inside the greeter environment
+        GreeterEnvironment = "LIBGL_ALWAYS_SOFTWARE=1,QT_QUICK_BACKEND=software";
       };
     };
   };
