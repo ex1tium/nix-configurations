@@ -45,10 +45,11 @@ with lib;
     };
 
     # User groups configuration (core groups only)
-    users.groups = {
-      # Ensure required groups exist
-      ${config.mySystem.user} = {};
-    };
+    users.groups.${config.mySystem.user} = {};
+
+    # Explicitly add the user to the wheel group for sudo access
+    # This is the definitive fix for the 'permission denied' error.
+    users.groups.wheel.members = [ config.mySystem.user ];
 
     # Sudo configuration
     security.sudo = {
