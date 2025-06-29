@@ -11,7 +11,7 @@ set -euo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 # Required packages for the installer
-REQUIRED_PACKAGES=(git parted util-linux gptfdisk cryptsetup rsync tar jq bc)
+REQUIRED_PACKAGES=(git parted util-linux gptfdisk cryptsetup rsync gnutar jq bc)
 
 # Colors for output
 RED='\033[0;31m'
@@ -41,34 +41,53 @@ detect_target_script() {
     # Check if user wants elara-specific installation
     if [[ "${1:-}" == "--elara" ]] || [[ "${1:-}" == "elara" ]]; then
         echo "$SCRIPT_DIR/install-elara.sh"
-        shift # Remove the elara flag from arguments
     else
         echo "$SCRIPT_DIR/install_machine.sh"
     fi
 }
 
+filter_args() {
+    # Remove elara-specific flags from arguments
+    local filtered_args=()
+    for arg in "$@"; do
+        if [[ "$arg" != "--elara" ]] && [[ "$arg" != "elara" ]]; then
+            filtered_args+=("$arg")
+        fi
+    done
+    printf '%s\n' "${filtered_args[@]}"
+}
+
 main() {
     print_header
-    
+
     echo -e "${BLUE}[INFO]${NC} Checking Nix availability..."
     check_nix_available
-    
+
     echo -e "${BLUE}[INFO]${NC} Detecting target installation script..."
     TARGET_SCRIPT=$(detect_target_script "$@")
-    
+
     if [[ ! -f "$TARGET_SCRIPT" ]]; then
         echo -e "${RED}ERROR: Installation script not found: $TARGET_SCRIPT${NC}"
         echo "Please ensure you're running this from the nix-configurations directory."
         exit 1
     fi
-    
+
     echo -e "${BLUE}[INFO]${NC} Target script: $(basename "$TARGET_SCRIPT")"
     echo -e "${BLUE}[INFO]${NC} Loading Nix environment with required packages..."
     echo -e "${YELLOW}[WAIT]${NC} This may take a moment to download packages..."
     echo
-    
-    # Execute the target script with all required dependencies
-    exec nix-shell -p "${REQUIRED_PACKAGES[@]}" --run "bash '$TARGET_SCRIPT' $*"
+
+    # Filter arguments and execute the target script with all required dependencies
+    mapfile -t FILTERED_ARGS < <(filter_args "$@")
+
+    # Build the nix-shell command with proper package arguments
+    local nix_cmd=(nix-shell)
+    for pkg in "${REQUIRED_PACKAGES[@]}"; do
+        nix_cmd+=(-p "$pkg")
+    done
+    nix_cmd+=(--run "bash '$TARGET_SCRIPT' ${FILTERED_ARGS[*]}")
+
+    exec "${nix_cmd[@]}"
 }
 
 # Show usage if help requested
