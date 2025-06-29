@@ -1,20 +1,28 @@
 # Desktop Common Feature Module
 # Shared desktop functionality across all desktop environments
+# Single source of truth for common desktop services and configuration
 
 { config, lib, pkgs, ... }:
 
 with lib;
 
+let
+  desktopCfg = config.mySystem.features.desktop;
+  desktopEnvironment = desktopCfg.environment;
+in
 {
-  config = mkIf config.mySystem.features.desktop.enable {
-    # XDG Portal
+  config = mkIf desktopCfg.enable {
+    # XDG Portal - configured per desktop environment
     xdg.portal = {
       enable = true;
       extraPortals = with pkgs; [
         xdg-desktop-portal-gtk
+      ] ++ optionals (desktopEnvironment == "plasma") [
         xdg-desktop-portal-kde
       ];
-      config.common.default = [ "kde" ];
+      config.common.default =
+        if desktopEnvironment == "plasma" then [ "kde" ]
+        else [ "gtk" ];
     };
 
     # Desktop Audio System - PipeWire (complete configuration)
@@ -148,7 +156,7 @@ with lib;
       QT_STYLE_OVERRIDE = "breeze";
     };
 
-    # User Groups for Desktop
+    # User Groups for Desktop (centralized)
     users.users.${config.mySystem.user}.extraGroups = [
       "audio"
       "video"
@@ -157,6 +165,7 @@ with lib;
       "scanner"
       "storage"
       "optical"
+      "networkmanager"  # For network management
     ];
 
     # Ensure desktop groups exist

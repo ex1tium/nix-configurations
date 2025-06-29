@@ -6,83 +6,28 @@
 with lib;
 
 {
+  imports = [
+    ./development/vscode.nix
+  ];
   config = mkIf config.mySystem.features.development.enable {
-    # Essential Development Packages
-    environment.systemPackages = with pkgs; [
-      # Core Development Tools
-      git
-      gh
-      git-lfs
-      git-crypt
-      
-      # Build Tools
-      gnumake
-      cmake
-      pkg-config
-      autoconf
-      automake
-      libtool
-      gcc
-      clang
-      llvm
-      
-      # Modern CLI Tools
-      bat
-      eza
-      fd
-      ripgrep
-      fzf
-      zoxide
-      direnv
-      just
-      jq
-      yq
-      
-      # Debugging Tools
-      gdb
-      lldb
-      strace
-      ltrace
-      valgrind
-      
-      # Network Tools
-      curl
-      wget
-      httpie
-      netcat
-      socat
-      
-      # Archive Tools
-      zip
-      unzip
-      p7zip
-      gnutar
-      gzip
-      
-      # System Monitoring
-      htop
-      btop
-      iotop
-      
-      # File Tools
-      tree
-      file
-      which
-      lsof
-      
-      # Text Processing
-      gnused
-      gawk
-      gnugrep
-      
-      # Version Control
-      mercurial
-      subversion
-      
-      # Documentation
-      man-pages
-      man-pages-posix
-    ] ++ optionals (elem "nodejs" config.mySystem.features.development.languages) [
+    # Essential Development Packages (using shared collections)
+    environment.systemPackages =
+      let
+        packages = import ../packages/common.nix { inherit pkgs; };
+      in
+      packages.developmentCore ++
+      packages.buildTools ++
+      packages.cliTools ++
+      packages.developmentCli ++
+      packages.debuggingTools ++
+      packages.developmentNetwork ++
+      packages.archiveTools ++
+      packages.developmentArchive ++
+      packages.developmentMonitoring ++
+      packages.textProcessing ++
+      packages.versionControl ++
+      packages.documentationTools ++
+      optionals (elem "nodejs" config.mySystem.features.development.languages) [
       # Node.js Development
       nodejs_latest
       nodePackages.npm
@@ -121,10 +66,8 @@ with lib;
       nixd
       nixpkgs-fmt
       statix
-    ] ++ optionals (elem "vscode" config.mySystem.features.development.editors) [
-      # VS Code
-      vscode-with-extensions
     ] ++ optionals config.mySystem.features.desktop.enable [
+      # VS Code is handled by the vscode.nix module
       # GUI Development Tools (only if desktop is enabled)
       dbeaver-bin
       postman

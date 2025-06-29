@@ -6,46 +6,20 @@
 with lib;
 
 {
+  imports = [
+    ./hardware/gpu.nix
+    ./desktop/display-server.nix
+    ./desktop/common.nix
+    ./desktop/packages.nix
+    ./desktop/plasma.nix
+    ./desktop/xfce.nix
+  ];
   config = mkIf config.mySystem.features.desktop.enable {
-    # Desktop Environment
-    services.xserver = {
-      enable = true;
-      xkb = {
-        layout = mkDefault "us";
-        variant = mkDefault "";
-        options = mkDefault "grp:alt_shift_toggle";
-      };
-    };
+    # All X11/Wayland configuration is handled by display-server.nix
+    # All desktop environment configuration is handled by specific DE modules
+    # (plasma.nix, xfce.nix, etc.) based on mySystem.features.desktop.environment
 
-    # Touchpad Configuration
-    services.libinput = {
-      enable = mkDefault true;
-      touchpad = {
-        tapping = mkDefault true;
-        naturalScrolling = mkDefault true;
-        middleEmulation = mkDefault true;
-      };
-    };
-
-    # Display Manager
-    services.displayManager.sddm = {
-      enable = mkDefault true;
-      wayland.enable = mkDefault true;
-      theme = mkDefault "breeze";
-    };
-
-    # Desktop Environment - KDE Plasma 6 by default
-    services.desktopManager.plasma6.enable = mkDefault true;
-
-    # XDG Portal
-    xdg.portal = {
-      enable = true;
-      extraPortals = with pkgs; [
-        xdg-desktop-portal-gtk
-        xdg-desktop-portal-kde
-      ];
-      config.common.default = [ "kde" ];
-    };
+    # XDG Portal configuration is handled by specific DE modules
 
     # Desktop Audio System - PipeWire (complete configuration)
     hardware.pulseaudio.enable = mkDefault false; # Disable PulseAudio
@@ -102,19 +76,8 @@ with lib;
     };
     services.blueman.enable = mkDefault true;
 
-    # Graphics
-    hardware.graphics = {
-      enable = true;
-      enable32Bit = mkDefault true;
-      extraPackages = with pkgs; [
-        intel-media-driver
-        vaapiIntel
-        vaapiVdpau
-        libvdpau-va-gl
-        mesa.drivers
-        amdvlk
-      ];
-    };
+    # Graphics configuration is handled by hardware/gpu.nix module
+    # This ensures proper GPU driver selection based on mySystem.hardware.gpu setting
 
     # Fonts
     fonts = {
@@ -153,82 +116,7 @@ with lib;
       };
     };
 
-    # Desktop Packages
-    environment.systemPackages = with pkgs; [
-      # KDE Applications
-      kdePackages.kate
-      kdePackages.konsole
-      kdePackages.dolphin
-      kdePackages.ark
-      kdePackages.okular
-      kdePackages.gwenview
-      kdePackages.spectacle
-      kdePackages.kalk
-      kdePackages.kcalc
-      kdePackages.kcharselect
-      kdePackages.kcolorchooser
-      kdePackages.kruler
-      kdePackages.filelight
-      
-      # Browsers
-      firefox
-      brave
-      
-      # Office Suite
-      libreoffice-qt6-fresh
-      
-      # Media
-      vlc
-      mpv
-      
-      # Graphics
-      gimp
-      inkscape
-      
-      # Communication
-      thunderbird
-      discord
-      
-      # Utilities
-      gparted
-      baobab
-      
-      # Archive Tools
-      p7zip
-      unzip
-      zip
-      
-      # System Tools
-      lsof
-      tree
-      file
-      which
-      
-      # Network Tools
-      networkmanagerapplet
-      
-      # Multimedia Codecs
-      gst_all_1.gstreamer
-      gst_all_1.gst-plugins-base
-      gst_all_1.gst-plugins-good
-      gst_all_1.gst-plugins-bad
-      gst_all_1.gst-plugins-ugly
-      gst_all_1.gst-libav
-      
-      # Image Viewers
-      feh
-      
-      # PDF Viewers
-      evince
-      
-      # Text Editors
-      gedit
-      vscode-with-extensions  # Always install VS Code on desktop systems
-
-      # Terminal Emulators
-      alacritty
-      kitty
-    ];
+    # Desktop packages are provided by specific DE modules and common.nix
 
     # Desktop Services
     services = {
@@ -296,7 +184,7 @@ with lib;
 
     # Console Configuration
     console = {
-      keyMap = mkDefault "us";
+      keyMap = mkDefault "fi";  # Finnish keyboard layout for console
       font = mkDefault "Lat2-Terminus16";
     };
 

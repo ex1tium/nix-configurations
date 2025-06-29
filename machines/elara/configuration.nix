@@ -2,9 +2,7 @@
 # Developer workstation with full capabilities
 # Uses the developer profile with machine-specific customizations
 
-{ lib, pkgs, ... }:
-
-with lib;
+{ pkgs, ... }:
 
 {
   # Machine-specific overrides for the developer profile
@@ -47,12 +45,12 @@ with lib;
     max-jobs = "auto";
   };
 
-  # Machine-specific packages (beyond profile defaults)
-  environment.systemPackages = with pkgs; [
-    # VM-specific tools
-    spice-vdagent         # SPICE guest agent
-    qemu_kvm              # QEMU guest agent
-  ];
+  # Machine-specific packages (using shared collections)
+  environment.systemPackages =
+    let
+      packages = import ../../modules/packages/common.nix { inherit pkgs; };
+    in
+    packages.vmTools;
 
   # Virtual Machine Services (elara is a VM)
   services = {

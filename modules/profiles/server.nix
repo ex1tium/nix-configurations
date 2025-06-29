@@ -31,7 +31,7 @@ with lib;
       development = {
         enable = mkDefault false;
         languages = mkDefault [ "nix" ]; # Only Nix for configuration management
-        editors = mkDefault [ "neovim" ];
+        editors = mkDefault [ "vim" ];   # Use vim instead of neovim for minimal footprint
         enableContainers = mkDefault true;
         enableVirtualization = mkDefault true;
         enableDatabases = mkDefault false; # Databases run in containers
@@ -65,86 +65,30 @@ with lib;
     };
   };
 
-  # Server-specific packages (extends base packages)
-  environment.systemPackages = with pkgs; [
-    # Container management (additional to base)
-    docker-compose
-    podman-compose
-    buildah
-    skopeo
+  # Server-specific packages (using shared collections)
+  environment.systemPackages =
+    let
+      packages = import ../packages/common.nix { inherit pkgs; };
+    in
+    packages.serverContainers ++
+    packages.serverVirtualization ++
+    packages.serverMonitoring ++
+    packages.serverNetwork ++
+    packages.serverSecurity ++
+    packages.serverBackup ++
+    packages.serverUtilities ++
+    packages.serverSecurityScanning;
 
-    # Virtualization management
-    qemu_kvm
-    libvirt
-    virt-viewer
-
-    # System monitoring and management
-    iotop
-    nethogs
-    iftop
-    vnstat
-
-    # Network tools
-    nmap
-    tcpdump
-    wireshark-cli
-    iperf3
-    mtr
-
-    # Security tools
-    fail2ban
-    lynis
-    chkrootkit
-    rkhunter
-
-    # Backup and sync
-    rsync
-    rclone
-    borgbackup
-    restic
-
-    # Text editors and utilities
-    neovim
-    tmux
-    screen
-
-    # System utilities
-    strace
-    ltrace
-
-    # Network utilities
-    httpie # curl/wget are in base
-
-    # Process management
-    supervisor
-
-    # Log management
-    logrotate
-
-    # Performance monitoring
-    sysstat
-
-    # Container security scanning
-    trivy
-
-    # Infrastructure as code
-    terraform
-    ansible
-
-    # Kubernetes tools (optional)
-    kubectl
-    helm
-    k9s
-
-    # Monitoring tools
-    prometheus
-    grafana
-
-    # Database clients
-    postgresql
-    mysql
-    redis
-  ];
+  # Note: Removed packages for minimal server footprint:
+  # - neovim (use vim from base)
+  # - kubernetes tools (kubectl, helm, k9s) - install per-machine if needed
+  # - prometheus, grafana - run in containers instead
+  # - database clients (postgresql, mysql, redis) - use containers
+  # - infrastructure tools (terraform, ansible) - install per-machine if needed
+  # - additional security tools (lynis, chkrootkit, rkhunter) - install if needed
+  # - additional backup tools (rclone, restic) - install per-machine if needed
+  # - virt-viewer - not needed on headless servers
+  # - vnstat, supervisor, logrotate, sysstat - available but not essential
 
   # Server-specific services (extends base services)
   services = {
@@ -179,24 +123,9 @@ with lib;
       };
     };
 
-    # System monitoring
-    prometheus = {
-      enable = mkDefault false; # Can be enabled per machine
-      port = mkDefault 9090;
-      exporters = {
-        node = {
-          enable = mkDefault true;
-          enabledCollectors = [
-            "systemd"
-            "textfile"
-            "filesystem"
-            "meminfo"
-            "diskstats"
-            "netdev"
-          ];
-        };
-      };
-    };
+    # System monitoring - use containers for Prometheus/Grafana
+    # Node exporter can be enabled per-machine if needed for monitoring
+    # prometheus.exporters.node.enable = true;  # Uncomment if needed
 
     # Log management (extends base journald)
     journald.extraConfig = ''

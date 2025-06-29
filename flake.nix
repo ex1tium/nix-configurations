@@ -63,6 +63,8 @@
           inherit globalConfig machineConfig;
         };
         modules = [
+          # Apply custom overlays
+          { nixpkgs.overlays = [ (import ./modules/overlays/custom-overlay.nix) ]; }
           # Hardware configuration
           ./machines/${hostname}/hardware-configuration.nix
 
@@ -133,15 +135,54 @@
       apps = {
         update = flake-utils.lib.mkApp {
           drv = pkgs.writeShellScriptBin "update" ''
-            nix flake update
-            echo "✅ Flake inputs updated!"
+            echo "🔄 Updating flake inputs..."
+            nix flake update --commit-lock-file
+            echo "✅ Flake inputs updated and committed!"
           '';
         };
-        
+
         check = flake-utils.lib.mkApp {
           drv = pkgs.writeShellScriptBin "check" ''
+            echo "🔍 Checking configuration..."
             nix flake check --all-systems
             echo "✅ Configuration check completed!"
+          '';
+        };
+
+        upgrade-check = flake-utils.lib.mkApp {
+          drv = pkgs.writeShellScriptBin "upgrade-check" ''
+            set -euo pipefail
+
+            echo "🔍 Checking for updates..."
+            nix flake update --commit-lock-file
+
+            echo "📊 Recent changes:"
+            ${pkgs.git}/bin/git log --oneline -5 flake.lock || true
+
+            echo "🧪 Testing build for current machine..."
+            hostname=$(${pkgs.hostname}/bin/hostname)
+            sudo nixos-rebuild build --flake .#$hostname
+
+            echo "✅ Ready to apply with: sudo nixos-rebuild switch --flake .#$hostname"
+            echo "📚 See docs/UPGRADE_GUIDE.md for detailed procedures"
+          '';
+        };
+
+        deploy = flake-utils.lib.mkApp {
+          drv = pkgs.writeShellScriptBin "deploy" ''
+            set -euo pipefail
+
+            hostname=$(${pkgs.hostname}/bin/hostname)
+            echo "🚀 Deploying configuration for $hostname..."
+
+            # Build first to catch errors
+            sudo nixos-rebuild build --flake .#$hostname
+
+            # Apply configuration
+            sudo nixos-rebuild switch --flake .#$hostname
+
+            echo "✅ Deployment completed!"
+            echo "📋 Check system status with: systemctl --failed"
           '';
         };
       };

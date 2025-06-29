@@ -65,53 +65,24 @@ with lib;
       enableAllFirmware = mkDefault false; # Only enable if needed
     };
 
-    # Essential system packages
-    environment.systemPackages = with pkgs; [
-      # Core utilities
-      vim
-      nano
-      git
-      curl
-      wget
-      tree
-      file
-      which
-
-      # Modern CLI tools
-      bat
-      eza
-      fd
-      ripgrep
-      fzf
-      zoxide
-      htop
-      btop
-      browsh
-
-      # System tools
-      lsof
-      psmisc
-      procps
-      util-linux
-
-      # Network tools
-      inetutils
-      dnsutils
-
-      # Archive tools
-      zip
-      unzip
-      p7zip
-
-      # Security tools
-      gnupg
-      pinentry
-    ] ++ optionals config.mySystem.features.desktop.enable [
-      # Desktop-specific packages
-      pinentry-gtk2
-      xsel
-      xclip
-    ];
+    # Essential system packages (using shared collections)
+    environment.systemPackages =
+      let
+        packages = import ../packages/common.nix { inherit pkgs; };
+      in
+      packages.systemTools ++
+      packages.cliTools ++
+      packages.systemUtilities ++
+      packages.networkTools ++
+      packages.archiveTools ++
+      packages.securityTools ++
+      [ pkgs.browsh ] ++  # Additional core-specific package
+      optionals config.mySystem.features.desktop.enable [
+        # Desktop-specific packages
+        pkgs.pinentry-gtk2
+        pkgs.xsel
+        pkgs.xclip
+      ];
 
     # Environment variables
     environment.variables = {
@@ -125,24 +96,9 @@ with lib;
     environment.shells = with pkgs; [ bash zsh ];
     users.defaultUserShell = mkDefault pkgs.zsh;
 
-    # Locale settings
-    i18n.extraLocaleSettings = mkIf (config.mySystem.locale == "en_US.UTF-8") {
-      LC_ADDRESS = mkDefault "fi_FI.UTF-8";
-      LC_IDENTIFICATION = mkDefault "fi_FI.UTF-8";
-      LC_MEASUREMENT = mkDefault "fi_FI.UTF-8";
-      LC_MONETARY = mkDefault "fi_FI.UTF-8";
-      LC_NAME = mkDefault "fi_FI.UTF-8";
-      LC_NUMERIC = mkDefault "fi_FI.UTF-8";
-      LC_PAPER = mkDefault "fi_FI.UTF-8";
-      LC_TELEPHONE = mkDefault "fi_FI.UTF-8";
-      LC_TIME = mkDefault "fi_FI.UTF-8";
-    };
+    # Locale configuration is handled by locale-fi.nix module
 
-    # Console configuration
-    console = {
-      keyMap = mkDefault "us";
-      font = mkDefault "Lat2-Terminus16";
-    };
+    # Console configuration is handled by locale-fi.nix module
 
     # Package management
     nixpkgs.config = {

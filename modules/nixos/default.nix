@@ -5,6 +5,11 @@
 
 with lib;
 
+let
+  # Import centralized defaults
+  defaults = import ../defaults.nix { inherit lib; };
+in
+
 {
   # Import core foundation modules only
   imports = [
@@ -14,43 +19,43 @@ with lib;
     ./security.nix
   ];
 
-  # Modern option definitions with proper types
+  # Modern option definitions with proper types using centralized defaults
   options.mySystem = {
     enable = mkEnableOption "custom system configuration";
 
     hostname = mkOption {
       type = types.str;
-      default = globalConfig.defaultUser or "nixos";
+      default = globalConfig.defaultHostname or "nixos";
       description = "System hostname";
       example = "my-machine";
     };
 
     user = mkOption {
       type = types.str;
-      default = globalConfig.defaultUser or "user";
+      default = globalConfig.defaultUser or defaults.system.defaultUser;
       description = "Primary user account";
       example = "john";
     };
 
     timezone = mkOption {
       type = types.str;
-      default = globalConfig.defaultTimezone or "UTC";
+      default = globalConfig.defaultTimezone or defaults.system.timezone;
       description = "System timezone";
       example = "Europe/Helsinki";
     };
 
     locale = mkOption {
       type = types.str;
-      default = globalConfig.defaultLocale or "en_US.UTF-8";
+      default = globalConfig.defaultLocale or defaults.system.locale;
       description = "System locale";
       example = "en_US.UTF-8";
     };
 
     stateVersion = mkOption {
       type = types.str;
-      default = globalConfig.defaultStateVersion or "24.11";
+      default = globalConfig.defaultStateVersion or defaults.system.stateVersion;
       description = "NixOS state version";
-      example = "24.11";
+      example = "25.05";
     };
 
     features = mkOption {
@@ -62,16 +67,25 @@ with lib;
                 enable = mkEnableOption "desktop environment";
                 environment = mkOption {
                   type = types.enum [ "plasma" "gnome" "xfce" "i3" ];
-                  default = "plasma";
+                  default = defaults.features.desktop.environment;
                   description = "Desktop environment to use";
+                };
+                lowSpec = mkEnableOption "low-spec optimizations for older hardware";
+                enableWayland = mkOption {
+                  type = types.bool;
+                  default = defaults.features.desktop.enableWayland;
+                  description = "Enable Wayland display server support";
+                };
+                enableX11 = mkOption {
+                  type = types.bool;
+                  default = defaults.features.desktop.enableX11;
+                  description = "Enable X11 display server support";
                 };
                 displayManager = mkOption {
                   type = types.enum [ "sddm" "gdm" "lightdm" ];
-                  default = "sddm";
+                  default = defaults.features.desktop.displayManager;
                   description = "Display manager to use";
                 };
-                enableWayland = mkEnableOption "Wayland support";
-                enableX11 = mkEnableOption "X11 support";
                 enableRemoteDesktop = mkEnableOption "remote desktop access";
               };
             };
@@ -85,12 +99,12 @@ with lib;
                 enable = mkEnableOption "development tools";
                 languages = mkOption {
                   type = types.listOf (types.enum [ "nodejs" "go" "python" "rust" "nix" "java" "cpp" ]);
-                  default = [ "nix" ];
+                  default = defaults.features.development.languages;
                   description = "Programming languages to support";
                 };
                 editors = mkOption {
                   type = types.listOf (types.enum [ "vscode" "neovim" "vim" "emacs" ]);
-                  default = [ "vim" ];
+                  default = defaults.features.development.editors;
                   description = "Text editors to install";
                 };
                 enableContainers = mkEnableOption "container development tools";
@@ -140,14 +154,14 @@ with lib;
         options = {
           kernel = mkOption {
             type = types.enum [ "stable" "latest" "lts" ];
-            default = "stable";
+            default = defaults.hardware.kernel;
             description = "Kernel version to use";
           };
           enableVirtualization = mkEnableOption "hardware virtualization support";
           enableRemoteDesktop = mkEnableOption "remote desktop hardware acceleration";
           gpu = mkOption {
             type = types.enum [ "intel" "amd" "nvidia" "none" ];
-            default = "none";
+            default = defaults.hardware.gpu;
             description = "GPU type for driver optimization";
           };
         };

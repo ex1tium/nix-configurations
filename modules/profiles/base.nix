@@ -5,105 +5,85 @@
 
 with lib;
 
+let
+  # Import centralized defaults
+  defaults = import ../defaults.nix { inherit lib; };
+in
+
 {
   imports = [
     ../nixos
+    ../features/locale-fi.nix
   ];
 
-  # Base profile configuration
+  # Base profile configuration using centralized defaults
   mySystem = {
     enable = true;
-    
-    # Basic system settings from global config
-    hostname = mkDefault (globalConfig.defaultHostname or "nixos");
-    user = mkDefault (globalConfig.defaultUser or "user");
-    timezone = mkDefault (globalConfig.defaultTimezone or "UTC");
-    locale = mkDefault (globalConfig.defaultLocale or "en_US.UTF-8");
-    stateVersion = mkDefault (globalConfig.defaultStateVersion or "24.11");
 
-    # Base features - minimal set for all systems
+    # Basic system settings from centralized defaults with global config override
+    hostname = mkDefault (globalConfig.defaultHostname or "nixos");
+    user = mkDefault (globalConfig.defaultUser or defaults.system.defaultUser);
+    timezone = mkDefault (globalConfig.defaultTimezone or defaults.system.timezone);
+    locale = mkDefault (globalConfig.defaultLocale or defaults.system.locale);
+    stateVersion = mkDefault (globalConfig.defaultStateVersion or defaults.system.stateVersion);
+
+    # Base features - minimal set for all systems using centralized defaults
     features = {
       desktop = {
-        enable = mkDefault false;
-        environment = mkDefault "plasma";
-        displayManager = mkDefault "sddm";
-        enableWayland = mkDefault true;
-        enableX11 = mkDefault true;
-        enableRemoteDesktop = mkDefault false;
+        enable = mkDefault defaults.features.desktop.enable;
+        environment = mkDefault defaults.features.desktop.environment;
+        displayManager = mkDefault defaults.features.desktop.displayManager;
+        enableWayland = mkDefault defaults.features.desktop.enableWayland;
+        enableX11 = mkDefault defaults.features.desktop.enableX11;
+        enableRemoteDesktop = mkDefault defaults.features.desktop.enableRemoteDesktop;
       };
 
       development = {
-        enable = mkDefault false;
-        languages = mkDefault [ "nix" ];
-        editors = mkDefault [ "vim" ];
-        enableContainers = mkDefault false;
-        enableVirtualization = mkDefault false;
-        enableDatabases = mkDefault false;
+        enable = mkDefault defaults.features.development.enable;
+        languages = mkDefault defaults.features.development.languages;
+        editors = mkDefault defaults.features.development.editors;
+        enableContainers = mkDefault defaults.features.development.enableContainers;
+        enableVirtualization = mkDefault defaults.features.development.enableVirtualization;
+        enableDatabases = mkDefault defaults.features.development.enableDatabases;
       };
 
       virtualization = {
-        enable = mkDefault false;
-        enableDocker = mkDefault false;
-        enablePodman = mkDefault false;
-        enableLibvirt = mkDefault false;
-        enableVirtualbox = mkDefault false;
-        enableWaydroid = mkDefault false;
+        enable = mkDefault defaults.features.virtualization.enable;
+        enableDocker = mkDefault defaults.features.virtualization.enableDocker;
+        enablePodman = mkDefault defaults.features.virtualization.enablePodman;
+        enableLibvirt = mkDefault defaults.features.virtualization.enableLibvirt;
+        enableVirtualbox = mkDefault defaults.features.virtualization.enableVirtualbox;
+        enableWaydroid = mkDefault defaults.features.virtualization.enableWaydroid;
       };
 
       server = {
-        enable = mkDefault false;
-        enableMonitoring = mkDefault false;
-        enableBackup = mkDefault false;
-        enableWebServer = mkDefault false;
+        enable = mkDefault defaults.features.server.enable;
+        enableMonitoring = mkDefault defaults.features.server.enableMonitoring;
+        enableBackup = mkDefault defaults.features.server.enableBackup;
+        enableWebServer = mkDefault defaults.features.server.enableWebServer;
       };
     };
 
-    # Base hardware configuration
+    # Base hardware configuration using centralized defaults
     hardware = {
-      kernel = mkDefault "stable";
-      enableVirtualization = mkDefault false;
-      enableRemoteDesktop = mkDefault false;
-      gpu = mkDefault "none";
+      kernel = mkDefault defaults.hardware.kernel;
+      enableVirtualization = mkDefault defaults.hardware.enableVirtualization;
+      enableRemoteDesktop = mkDefault defaults.hardware.enableRemoteDesktop;
+      gpu = mkDefault defaults.hardware.gpu;
     };
   };
 
-  # Base system packages (minimal set)
-  environment.systemPackages = with pkgs; [
-    # Essential system tools
-    vim
-    nano
-    git
-    curl
-    wget
-    tree
-    file
-    which
-    
-    # Modern CLI tools
-    bat
-    eza
-    fd
-    ripgrep
-    fzf
-    zoxide
-    htop
-    btop
-    
-    # System utilities
-    lsof
-    psmisc
-    procps
-    util-linux
-    
-    # Network tools
-    inetutils
-    dnsutils
-    
-    # Archive tools
-    zip
-    unzip
-    p7zip
-  ];
+  # Base system packages (using shared collections)
+  environment.systemPackages =
+    let
+      packages = import ../packages/common.nix { inherit pkgs; };
+    in
+    packages.systemTools ++
+    packages.cliTools ++
+    packages.systemUtilities ++
+    packages.networkTools ++
+    packages.archiveTools ++
+    packages.securityTools;
 
   # Base services configuration
   services = {

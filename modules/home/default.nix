@@ -1,9 +1,7 @@
 # Modern Home Manager Configuration
 # Simplified user-level configuration
 
-{ config, lib, pkgs, ... }:
-
-with lib;
+{ config, pkgs, ... }:
 
 {
   imports = [
@@ -27,18 +25,14 @@ with lib;
         XDG_STATE_HOME = "$HOME/.local/state";
       };
 
-      # Essential user packages (minimal set)
-      packages = with pkgs; [
-        # Core CLI tools
-        bat
-        eza
-        fd
-        ripgrep
-        fzf
-        zoxide
+      # Essential user packages (using shared collections)
+      packages =
+        let
+          packages = import ../packages/common.nix { inherit pkgs; };
+        in
+        packages.homeCliTools;
 
         # Additional packages are provided by system profiles
-      ];
     };
   };
 }
