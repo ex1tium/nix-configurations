@@ -130,23 +130,87 @@ sudo mount /dev/sda1 /mnt/boot  # Existing EFI partition
 
 ## 🎯 Post-Installation
 
-After successful installation:
+The installer now handles password setup automatically, but here's what happens:
 
-1. **Set User Password**
-   ```bash
-   sudo passwd ex1tium
+### **Password Setup (Automated)**
+
+The installer will prompt you to:
+
+1. **Set User Password** (Recommended)
+   ```
+   🔑 Setting up user account password...
+   Set password for user 'ex1tium' now? [Y/n]: Y
    ```
 
-2. **Update System** (Optional)
-   ```bash
-   cd /etc/nixos
-   sudo nix flake update
-   sudo nixos-rebuild switch --flake .#elara
+2. **Set Root Password** (Optional)
+   ```
+   Set emergency root password? (optional but recommended) [y/N]: y
    ```
 
-3. **Verify Dual-Boot** (If applicable)
-   - Reboot and check GRUB menu
-   - Verify both operating systems boot correctly
+### **Manual Password Setup** (If Skipped)
+
+If you skipped password setup during installation:
+
+**From Installer Environment:**
+```bash
+# Set user password
+sudo chroot /mnt passwd ex1tium
+
+# Set root password (optional)
+sudo chroot /mnt passwd root
+```
+
+**After Reboot (Recovery Mode):**
+```bash
+# Boot into recovery mode, then:
+passwd ex1tium  # Set user password
+passwd root     # Set root password (optional)
+```
+
+### **System Updates** (Optional)
+```bash
+cd /etc/nixos
+sudo nix flake update
+sudo nixos-rebuild switch --flake .#elara
+```
+
+### **Verify Dual-Boot** (If applicable)
+- Reboot and check GRUB menu
+- Verify both operating systems boot correctly
+
+## 🔐 **NixOS Security Model**
+
+Understanding how user accounts work in your new NixOS system:
+
+### **User Account Structure**
+- **Primary User**: `ex1tium` (admin privileges via sudo)
+- **Root Account**: Disabled for direct login (security best practice)
+- **Sudo Access**: Available to users in `wheel` group
+
+### **Login Methods**
+```bash
+# ✅ Correct way to login
+ssh ex1tium@hostname
+# or local login as ex1tium
+
+# ❌ Root login disabled
+ssh root@hostname  # This will fail
+
+# ✅ Become root when needed
+sudo su -
+# or run commands with sudo
+```
+
+### **Password Policy**
+- **User Password**: Required for login and sudo operations
+- **Root Password**: Optional, only for emergency recovery
+- **SSH Keys**: Can be configured for passwordless login (advanced)
+
+### **Security Features**
+- ✅ **Root login disabled** (modern security practice)
+- ✅ **Sudo-only privilege escalation**
+- ✅ **Wheel group membership** required for admin access
+- ✅ **SSH root login blocked** by default
 
 ## ❓ Troubleshooting
 
