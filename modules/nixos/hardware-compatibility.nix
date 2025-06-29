@@ -16,8 +16,8 @@ let
   gpuVendor = "intel";  # Safe default
 
   # Virtualization detection (safe default for pure evaluation)
-  # Actual detection happens at system build time
-  isVirtualized = true;  # Safe default
+  # More conservative approach - assume virtualized to avoid hardware conflicts
+  isVirtualized = true;  # Safe default - prevents loading incompatible physical hardware drivers system build time
 
   # Determine correct KVM modules based on CPU vendor
   kvmModules = 

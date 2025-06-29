@@ -6,9 +6,15 @@
 with lib;
 
 let
-  # Auto-detection logic for GPU type (returns safe default during evaluation)
-  # Actual hardware detection happens at runtime through the hardware compatibility module
-  autoDetectedGpu = "intel";  # Safe default - actual detection happens at system build time
+  # VM-aware GPU detection to avoid loading physical GPU drivers in VMs without passthrough
+  # Check if we're in a virtualized environment first
+  isVirtualized = config.mySystem.hardware.compatibility.enable && 
+                  config.mySystem.hardware.compatibility.autoVmOptimizations;
+  
+  # Auto-detection logic for GPU type (VM-aware)
+  # In VMs without GPU passthrough, default to "none" to avoid driver conflicts
+  autoDetectedGpu = if isVirtualized then "none" else "intel";
+  
   gpuType = if config.mySystem.hardware.gpu == "auto" then autoDetectedGpu else config.mySystem.hardware.gpu;
   isDesktop = config.mySystem.features.desktop.enable;
 in
@@ -172,6 +178,29 @@ in
 
       # Blacklist nouveau driver
       boot.blacklistedKernelModules = [ "nouveau" ];
+    })
+
+    # "none" GPU Configuration - for VMs without GPU passthrough or headless systems
+    (mkIf (gpuType == "none") {
+      # Minimal graphics support for headless/VM environments
+      hardware.graphics = {
+        enable = mkDefault false;  # Disable hardware graphics acceleration
+        enable32Bit = mkDefault false;
+      };
+      
+      # Ensure no GPU-specific kernel modules are loaded
+      boot.blacklistedKernelModules = [
+        "i915" "xe"          # Intel GPU modules
+        "amdgpu" "radeon"    # AMD GPU modules  
+        "nvidia" "nouveau"   # NVIDIA GPU modules
+        "snd_hda_intel"      # Intel HDA audio (often tied to iGPU)
+      ];
+      
+      # VM-friendly minimal package set
+      environment.systemPackages = with pkgs; [
+        # Basic OpenGL info tools only
+        mesa-demos
+      ];
     })
 
     # Common GPU configuration for all types
