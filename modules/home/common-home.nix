@@ -1,7 +1,7 @@
 # Common home configuration module
 # This module contains settings that are shared across all users
 
-{ config, pkgs, ... }:
+{ ... }:
 
 {
   # Import ZSH configuration
@@ -15,8 +15,8 @@
   # Specify package versions
   home.stateVersion = "24.11";  # Use the same version as system config
 
-  # Allow unfree packages
-  nixpkgs.config.allowUnfree = true;
+  # Note: nixpkgs.config is inherited from system when using useGlobalPkgs = true
+  # No need to set allowUnfree here as it's already set in system configuration
 
   # User-specific Package Installation
   home.packages = [

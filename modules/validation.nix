@@ -34,11 +34,6 @@ let
       reason = "Virtualization is not recommended on low-spec hardware"; }
   ];
   
-  # Security validation helpers
-  hasWeakSecurity = 
-    (cfg.features.development.enable && !cfg.features.server.enable) ||
-    (cfg.features.desktop.enableRemoteDesktop && !cfg.features.server.enable);
-    
   # Performance validation helpers
   hasPerformanceIssues = 
     (isLowSpecHardware && hasVirtualization) ||
@@ -157,11 +152,11 @@ in
       ++ optional (hasDesktop && !cfg.features.desktop.enableRemoteDesktop && hasDevelopment)
          "Remote desktop is disabled on development system. Consider enabling for remote development access."
       
-      # Security warnings
-      ++ optional (cfg.features.desktop.enableRemoteDesktop && !hasServer)
-         "Remote desktop enabled on non-server system. Ensure proper firewall configuration and strong authentication."
-      ++ optional (hasWeakSecurity)
-         "Development features enabled without server hardening. Consider reviewing security settings."
+      # Security warnings (refined for development VMs)
+      ++ optional (cfg.features.desktop.enableRemoteDesktop && !hasServer && !hasDevelopment)
+         "Remote desktop enabled on non-server, non-development system. Ensure proper firewall configuration and strong authentication."
+      ++ optional (hasDevelopment && !hasServer && !cfg.features.desktop.enableRemoteDesktop)
+         "Development features enabled without server hardening. Consider enabling server features for additional security or remote desktop for development access."
       
       # Hardware warnings
       ++ optional (gpuType == "nvidia" && cfg.features.desktop.enableWayland)

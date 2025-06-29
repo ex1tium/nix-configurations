@@ -6,6 +6,8 @@
 #   ✓ Default **Btrfs** w/ snapshot‑ready root (ext4 & xfs opt‑in)
 #   ✓ Robust gap detection, disk‑size validation, ESP safety backup
 #   ✓ NVMe/SATA/virtio‑blk            ✓ Root‑safe, sudo keep‑alive & spinners
+#   ✓ Pre-install build validation    ✓ Configuration warning detection
+#   ✓ Comprehensive error reporting   ✓ Enhanced system requirements check
 #
 #   USAGE (from official NixOS ISO):
 #     $ ./install_elara.sh [--fs ext4|btrfs|xfs] [--encrypt] [--branch <git_branch>]
@@ -19,7 +21,30 @@ IFS=$'\n\t'
 ###############################################################################
 # Error handling & sudo keep‑alive
 ###############################################################################
-trap 'echo -e "\033[1;31m❌  Error at line $LINENO – aborting.\033[0m" >&2' ERR
+
+# Enhanced error handling with context
+error_exit() {
+  local line_no=$1
+  local error_code=$2
+  echo ""
+  echo "❌  Script failed at line $line_no with exit code $error_code"
+  echo "📍  Last command: ${BASH_COMMAND}"
+  echo ""
+
+  # Show relevant log files if they exist
+  for log in /tmp/flake_check.log /tmp/build_test.log /tmp/nixos_install.log; do
+    if [[ -f "$log" && -s "$log" ]]; then
+      echo "📋  Recent entries from $(basename "$log"):"
+      tail -10 "$log" | sed 's/^/    /'
+      echo ""
+    fi
+  done
+
+  echo "💡  For detailed logs, check files in /tmp/"
+  exit "$error_code"
+}
+
+trap 'error_exit ${LINENO} $?' ERR
 
 sudo -v # prime sudo
 after_exit() { sudo kill "$SUDO_LOOP_PID" 2>/dev/null || true; }
@@ -42,6 +67,7 @@ ENCRYPT="no"        # "yes" enables LUKS2 for root
 ###############################################################################
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --fs=*) FS_TYPE="${1#*=}"; shift ;;
     --fs)
       if [[ -n "${2:-}" ]]; then
         FS_TYPE="$2"; shift 2
@@ -50,6 +76,7 @@ while [[ $# -gt 0 ]]; do
       fi
       ;;
     --encrypt) ENCRYPT="yes"; shift ;;
+    --branch=*) REPO_BRANCH="${1#*=}"; shift ;;
     --branch)
       if [[ -n "${2:-}" ]]; then
         REPO_BRANCH="$2"; shift 2
@@ -80,9 +107,56 @@ if [[ ! -f /etc/NIXOS ]]; then
 fi
 
 ###############################################################################
+# Enhanced system validation
+###############################################################################
+validate_system() {
+  echo "🔍  Performing enhanced system validation..."
+
+  # Check required tools beyond basic dependencies
+  local missing_tools=()
+  for tool in jq curl; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      missing_tools+=("$tool")
+    fi
+  done
+
+  if [[ ${#missing_tools[@]} -gt 0 ]]; then
+    echo "⚠️   Missing optional tools: ${missing_tools[*]}"
+    echo "    These will be provided by nix-shell if needed."
+  fi
+
+  # Check sudo access and keep-alive
+  if ! sudo -n true 2>/dev/null; then
+    echo "🔐  Testing sudo access..."
+    if ! sudo true; then
+      echo "❌  Sudo access required but not available."
+      exit 1
+    fi
+  fi
+
+  # Check available disk space for build
+  local available_space
+  available_space=$(df /tmp --output=avail | tail -1)
+  if [[ $available_space -lt 5000000 ]]; then  # 5GB in KB
+    echo "⚠️   Low disk space in /tmp: $(( available_space / 1024 ))MB available"
+    echo "    NixOS builds may require significant temporary space."
+    read -rp "Continue anyway? [y/N]: " continue_space
+    if [[ ! $continue_space =~ ^[Yy] ]]; then
+      echo "Installation cancelled."
+      exit 1
+    fi
+  fi
+
+  echo "✅  Enhanced system validation completed"
+}
+
+# Run enhanced validation
+validate_system
+
+###############################################################################
 # Dependency bootstrap – re‑exec inside nix‑shell if tools missing
 ###############################################################################
-NEEDED=(git parted util-linux gptfdisk cryptsetup rsync tar pv)
+NEEDED=(git parted util-linux gptfdisk cryptsetup rsync tar jq)
 MISSING=(); for p in "${NEEDED[@]}"; do
   case "$p" in
     util-linux) bin="lsblk" ;;
@@ -120,7 +194,19 @@ done
 # Helpers
 ###############################################################################
 human() { printf "%dGB" $(( $1/1024/1024/1024 )); }
-spinner() { local pid=$1 msg=$2 i=0 sp='|/-\\'; while kill -0 $pid 2>/dev/null; do printf "\r%s %c" "$msg" "${sp:i++%4:1}"; sleep 0.15; done; printf "\r%s ✓\n" "$msg"; }
+spinner() {
+  local pid=$1 msg=$2 i=0 sp='|/-\\'
+  while kill -0 $pid 2>/dev/null; do
+    printf "\r%s %c" "$msg" "${sp:i++%4:1}"
+    sleep 0.15
+  done
+  if wait $pid; then
+    printf "\r%s ✓\n" "$msg"
+  else
+    printf "\r%s ❌\n" "$msg"
+    return 1
+  fi
+}
 largest_gap() { parted -m "$1" unit GB print free | awk -F: '$1=="free"{gsub(/GB/,"",$2);gsub(/GB/,"",$4); if($4+0>max){max=$4;start=$2}} END{print start,max}'; }
 list_disks() { lsblk -dn -o NAME,TYPE | awk '$2=="disk"{print "/dev/"$1}'; }
 find_esp() { lsblk -ln -o NAME,PARTTYPE "$1" | awk '$2~/[cC]12A7328|[eE][fF]00/{print "/dev/"$1; exit}'; }
@@ -178,19 +264,76 @@ echo "Detected primary user: $PRIMARY_USER"; read -rp "Is this OK? [Y/n]: " ok; 
 if [[ $ok =~ ^[Nn] ]]; then read -rp "Enter username: " PRIMARY_USER; fi
 
 # If overridden, write a transient overlay module so install succeeds
-if ! grep -q "${PRIMARY_USER}" flake.nix; then
+USER_OVERRIDE=""
+if ! grep -R --include='*.nix' -E "mySystem\.user\s*=\s*\"${PRIMARY_USER}\"" . >/dev/null 2>&1; then
   echo "{ ... }: { mySystem.user = \"$PRIMARY_USER\"; }" > "machines/$MACHINE/_user-override.nix"
+  echo "  User override created for installation"
+  USER_OVERRIDE="machines/$MACHINE/_user-override.nix"
 fi
 
 ###############################################################################
-# Generate HW config & install
+# Generate HW config & validate build
 ###############################################################################
 sudo nixos-generate-config --root /mnt >/dev/null
 sudo cp /mnt/etc/nixos/hardware-configuration.nix "machines/$MACHINE/"
 
-(nix $NIX_FLAGS flake check --no-build &>/tmp/flake_check.log || true) & spinner $! "Flake check"
+# Comprehensive flake validation
+echo "🔍  Validating flake configuration..."
+if ! nix $NIX_FLAGS flake check --no-build 2>/tmp/flake_check.log; then
+  echo "❌  Flake validation failed!"
+  echo "📋  Flake check errors:"
+  cat /tmp/flake_check.log
+  exit 1
+fi
 
-echo "🚀  nixos-install…"; (sudo nixos-install --no-root-password --flake ".#$MACHINE" --root /mnt &>/tmp/nixos_install.log) & spinner $! "Install"
+# Check for configuration warnings
+echo "⚠️   Checking for configuration warnings..."
+if nix $NIX_FLAGS eval ".#nixosConfigurations.$MACHINE.config.warnings" --json 2>/dev/null | jq -e '. | length > 0' >/dev/null 2>&1; then
+  echo "⚠️   Configuration warnings detected:"
+  nix $NIX_FLAGS eval ".#nixosConfigurations.$MACHINE.config.warnings" --json 2>/dev/null | jq -r '.[]' | sed 's/^/    /'
+  echo ""
+  read -rp "Continue with installation despite warnings? [y/N]: " continue_warn
+  if [[ ! $continue_warn =~ ^[Yy] ]]; then
+    echo "Installation cancelled. Please fix warnings first."
+    exit 1
+  fi
+  echo ""
+fi
+
+# Test build without installing (dry-run)
+echo "🧪  Testing system build (dry-run)..."
+if ! nix $NIX_FLAGS build --dry-run ".#nixosConfigurations.$MACHINE.config.system.build.toplevel" 2>/tmp/build_test.log; then
+  echo "❌  System build test failed!"
+  echo "📋  Build test errors:"
+  cat /tmp/build_test.log
+  echo ""
+  echo "�  This means the system configuration has issues that would cause installation to fail."
+  echo "    Please fix the configuration before attempting installation."
+  exit 1
+fi
+
+echo "✅  Build validation passed!"
+echo ""
+
+# Actual installation with full error reporting
+echo "🚀  Installing NixOS..."
+if ! sudo nixos-install --no-root-password --flake ".#$MACHINE" --root /mnt 2>&1 | tee /tmp/nixos_install.log; then
+  echo ""
+  echo "❌  Installation failed!"
+  echo "📋  Installation errors:"
+  tail -50 /tmp/nixos_install.log
+  echo ""
+  echo "💡  Full installation log available at: /tmp/nixos_install.log"
+  exit 1
+fi
+
+echo "✅  Installation completed successfully!"
+
+# Cleanup temporary user override file
+if [[ -n "$USER_OVERRIDE" && -f "$USER_OVERRIDE" ]]; then
+  rm -f "$USER_OVERRIDE"
+  echo "🧹  Cleaned up temporary user override"
+fi
 
 ###############################################################################
 # Post‑install password setup
