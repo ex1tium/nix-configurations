@@ -7,10 +7,8 @@ with lib;
 
 let
   # Use the new, more reliable hardware detection module.
-  # The `gpuType` is determined by the user's setting (`config.mySystem.hardware.gpu`).
-  # If it's set to 'auto', we use the automatically detected GPU vendor.
-  detectedGpu = config.mySystem.hardware.detectedGpu;
-  gpuType = if config.mySystem.hardware.gpu == "auto" then detectedGpu else config.mySystem.hardware.gpu;
+  # The `gpuType` is the final, resolved GPU vendor from the hardware module.
+  gpuType = config.mySystem.hardware.gpu.vendor;
   isDesktop = config.mySystem.features.desktop.enable;
 in
 {

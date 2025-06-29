@@ -64,23 +64,36 @@ in
       description = "Detected CPU vendor for hardware-specific optimizations.";
     };
 
-    gpu = mkOption {
-      type = types.enum [ "intel" "amd" "nvidia" "none" "auto" ];
-      default = "auto";
-      description = "GPU vendor for driver configuration. 'auto' uses the detected value.";
+    gpu = {
+      detection = mkOption {
+        type = types.enum [ "auto" "intel" "amd" "nvidia" "none" ];
+        default = "auto";
+        description = "GPU vendor for driver configuration. 'auto' uses the detected value.";
+      };
+
+      detectedVendor = mkOption {
+        type = types.enum [ "intel" "amd" "nvidia" "none" ];
+        readOnly = true;
+        default = detectedGpuVendor;
+        description = "The GPU vendor automatically detected by the system.";
+      };
+
+      vendor = mkOption {
+        type = types.enum [ "intel" "amd" "nvidia" "none" ];
+        readOnly = true;
+        default = if config.mySystem.hardware.gpu.detection == "auto"
+                  then config.mySystem.hardware.gpu.detectedVendor
+                  else config.mySystem.hardware.gpu.detection;
+        description = "The final GPU vendor used for configuration.";
+      };
     };
 
-    detectedGpu = mkOption {
-      type = types.enum [ "intel" "amd" "nvidia" "none" ];
-      readOnly = true;
-      default = if config.mySystem.hardware.gpu == "auto" then detectedGpuVendor else config.mySystem.hardware.gpu;
-      description = "The GPU vendor automatically detected by the system.";
-    };
-
-    isVirtualized = mkOption {
-      type = types.bool;
-      default = detectedIsVirtualized;
-      description = "Whether the system is detected as running in a virtual machine.";
+    virtualization = {
+      isVm = mkOption {
+        type = types.bool;
+        default = detectedIsVirtualized;
+        description = "Whether the system is detected as running in a virtual machine.";
+      };
     };
 
     debug = mkOption {
@@ -90,43 +103,42 @@ in
     };
   };
 
-  config = mkIf config.mySystem.hardware.enable {
-    # Generate appropriate KVM modules based on detected CPU
-    boot.kernelModules = let
-      kvmVendor = if config.mySystem.hardware.cpu.vendor == "intel" then [ "kvm-intel" ]
-                  else if config.mySystem.hardware.cpu.vendor == "amd" then [ "kvm-amd" ]
+  config = mkIf config.mySystem.hardware.enable (let
+    cfg = config.mySystem.hardware;
+    kvmModules = if cfg.cpu.vendor == "intel" then [ "kvm-intel" ]
+                 else if cfg.cpu.vendor == "amd" then [ "kvm-amd" ]
+                 else [];
+    iommuParams = if cfg.cpu.vendor == "intel" then [ "intel_iommu=on" "iommu=pt" ]
+                  else if cfg.cpu.vendor == "amd" then [ "amd_iommu=on" "iommu=pt" ]
                   else [];
-    in
-      optionals config.virtualisation.enableKvm kvmVendor;
+  in {
+    # Generate appropriate KVM modules based on detected CPU
+    boot.kernelModules = optionals config.virtualisation.enableKvm kvmModules;
 
     # Generate kernel parameters for IOMMU based on detected CPU
-    boot.kernelParams = let
-      iommuParams = if config.mySystem.hardware.cpu.vendor == "intel" then [ "intel_iommu=on" "iommu=pt" ]
-                    else if config.mySystem.hardware.cpu.vendor == "amd" then [ "amd_iommu=on" "iommu=pt" ]
-                    else [];
-    in
-      optionals config.virtualisation.enableGpuPassthrough iommuParams;
+    boot.kernelParams = optionals config.virtualisation.enableGpuPassthrough iommuParams;
 
     # Add warnings for debugging
-    warnings = optionals config.mySystem.hardware.debug [
-      "Hardware Detection Debug: CPU Vendor = ${config.mySystem.hardware.cpu.vendor}"
-      "Hardware Detection Debug: GPU Setting = ${config.mySystem.hardware.gpu}"
-      "Hardware Detection Debug: Detected GPU = ${config.mySystem.hardware.detectedGpu}"
-      "Hardware Detection Debug: Virtualized = ${toString config.mySystem.hardware.isVirtualized}"
+    warnings = optionals cfg.debug [
+      "Hardware Detection Debug: CPU Vendor = ${cfg.cpu.vendor}"
+      "Hardware Detection Debug: GPU Detection = ${cfg.gpu.detection}"
+      "Hardware Detection Debug: Detected GPU Vendor = ${cfg.gpu.detectedVendor}"
+      "Hardware Detection Debug: Final GPU Vendor = ${cfg.gpu.vendor}"
+      "Hardware Detection Debug: Virtualized = ${toString cfg.virtualization.isVm}"
       "Hardware Detection Debug: KVM Modules = ${toString config.boot.kernelModules}"
     ];
 
     # System info for debugging
     system.build.hardware-info = pkgs.writeText "hardware-info" ''
-      Hardware Detection Results:
+t      Hardware Detection Results:
       ===================================
-      CPU Vendor: ${config.mySystem.hardware.cpu.vendor}
-      GPU Setting: ${config.mySystem.hardware.gpu}
-      Detected GPU: ${config.mySystem.hardware.detectedGpu}
-      Virtualized: ${toString config.mySystem.hardware.isVirtualized}
+      CPU Vendor: ${cfg.cpu.vendor}
+      GPU Detection: ${cfg.gpu.detection}
+      Detected GPU Vendor: ${cfg.gpu.detectedVendor}
+      Final GPU Vendor: ${cfg.gpu.vendor}
+      Virtualized: ${toString cfg.virtualization.isVm}
       KVM Modules: ${toString kvmModules}
-      VM Kernel Params: ${toString vmKernelParams}
       IOMMU Params: ${toString iommuParams}
     '';
-  };
+  });
 }
