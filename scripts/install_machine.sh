@@ -960,8 +960,8 @@ generate_facter_config() {
 
   local facter_file="./machines/$SELECTED_MACHINE/facter.json"
   log_info "Generating hardware facts with nixos-facter..."
-
-  if sudo nixos-facter --json > "${facter_file}"; then
+  # The '-o' flag writes the report directly to the specified file.
+  if sudo nixos-facter -o "$facter_file"; then
     log_success "Generated hardware facts at $facter_file"
     git add "$facter_file"
     log_info "facter.json staged with git for flake access"
