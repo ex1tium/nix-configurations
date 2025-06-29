@@ -1225,7 +1225,17 @@ validate_and_fix_hardware_config() {
         root_uuid=$(findmnt -n -o UUID /mnt 2>/dev/null)
       fi
 
-      if [[ -n $root_uuid ]] && [[ -e "/dev/disk/by-uuid/$root_uuid" ]]; then
+      if [[ -n $root_uuid ]]; then
+        # Check if UUID symlink exists, if not trigger udev to create it
+        if [[ ! -e "/dev/disk/by-uuid/$root_uuid" ]]; then
+          log_info "  UUID symlink not found, triggering udev..."
+          sudo udevadm trigger --subsystem-match=block
+          sudo udevadm settle
+          sleep 1
+        fi
+
+        # Accept UUID if we have it, even if symlink doesn't exist yet
+        # The symlink will be created by the time we need it
         break
       fi
       log_info "Waiting for root UUID to be available (attempt $((retry_count + 1))/5)..."
@@ -1252,7 +1262,16 @@ validate_and_fix_hardware_config() {
         esp_uuid=$(findmnt -n -o UUID /mnt/boot 2>/dev/null)
       fi
 
-      if [[ -n $esp_uuid ]] && [[ -e "/dev/disk/by-uuid/$esp_uuid" ]]; then
+      if [[ -n $esp_uuid ]]; then
+        # Check if UUID symlink exists, if not trigger udev to create it
+        if [[ ! -e "/dev/disk/by-uuid/$esp_uuid" ]]; then
+          log_info "  UUID symlink not found, triggering udev..."
+          sudo udevadm trigger --subsystem-match=block
+          sudo udevadm settle
+          sleep 1
+        fi
+
+        # Accept UUID if we have it, even if symlink doesn't exist yet
         break
       fi
       log_info "Waiting for ESP UUID to be available (attempt $((retry_count + 1))/5)..."
@@ -1278,16 +1297,24 @@ validate_and_fix_hardware_config() {
   fi
 
   # Validate UUIDs are accessible (with fallback)
-  if [[ -n $root_uuid ]] && [[ ! -e "/dev/disk/by-uuid/$root_uuid" ]]; then
-    log_warn "Root UUID $root_uuid not accessible in /dev/disk/by-uuid/"
-    log_warn "Skipping UUID validation - hardware config may need manual review"
-    root_uuid=""  # Clear invalid UUID
+  if [[ -n $root_uuid ]]; then
+    if [[ ! -e "/dev/disk/by-uuid/$root_uuid" ]]; then
+      log_info "Root UUID $root_uuid symlink not yet available in /dev/disk/by-uuid/"
+      log_info "This is normal for fresh filesystems - symlinks will be created during boot"
+      # Don't clear the UUID - it's valid, just symlink timing issue
+    else
+      log_info "✅ Root UUID $root_uuid is accessible"
+    fi
   fi
 
-  if [[ -n $esp_uuid ]] && [[ ! -e "/dev/disk/by-uuid/$esp_uuid" ]]; then
-    log_warn "ESP UUID $esp_uuid not accessible in /dev/disk/by-uuid/"
-    log_warn "Skipping UUID validation - hardware config may need manual review"
-    esp_uuid=""  # Clear invalid UUID
+  if [[ -n $esp_uuid ]]; then
+    if [[ ! -e "/dev/disk/by-uuid/$esp_uuid" ]]; then
+      log_info "ESP UUID $esp_uuid symlink not yet available in /dev/disk/by-uuid/"
+      log_info "This is normal for fresh filesystems - symlinks will be created during boot"
+      # Don't clear the UUID - it's valid, just symlink timing issue
+    else
+      log_info "✅ ESP UUID $esp_uuid is accessible"
+    fi
   fi
 
   # If no valid UUIDs detected, skip patching entirely
@@ -1340,6 +1367,22 @@ validate_and_fix_hardware_config() {
       fix_btrfs_hardware_config "$hw_config"
     else
       log_success "BTRFS hardware configuration looks correct"
+    fi
+  fi
+
+  # Final UUID symlink preparation
+  if [[ -n $root_uuid ]] || [[ -n $esp_uuid ]]; then
+    log_info "Ensuring UUID symlinks are ready for installation..."
+    sudo udevadm trigger --subsystem-match=block
+    sudo udevadm settle
+    sleep 2
+
+    # Final verification
+    if [[ -n $root_uuid ]] && [[ -e "/dev/disk/by-uuid/$root_uuid" ]]; then
+      log_success "✅ Root UUID symlink ready: /dev/disk/by-uuid/$root_uuid"
+    fi
+    if [[ -n $esp_uuid ]] && [[ -e "/dev/disk/by-uuid/$esp_uuid" ]]; then
+      log_success "✅ ESP UUID symlink ready: /dev/disk/by-uuid/$esp_uuid"
     fi
   fi
 
