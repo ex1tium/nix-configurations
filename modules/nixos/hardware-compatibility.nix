@@ -131,7 +131,7 @@ in
       "Hardware Compatibility Debug: Virtualized = ${toString isVirtualized}"
       "Hardware Compatibility Debug: KVM Modules = ${toString kvmModules}"
       "Hardware Compatibility Debug: Auto GPU Detection = ${toString config.mySystem.hardware.compatibility.autoDetectGpu}"
-      "Hardware Compatibility Debug: Final GPU Config = ${config.mySystem.hardware.gpu}"
+      "Hardware Compatibility Debug: Detected GPU Vendor = ${gpuVendor}"
     ];
 
     # Kernel modules configuration
@@ -200,7 +200,7 @@ in
       AUTO_VM_OPTIMIZATIONS=${toString config.mySystem.hardware.compatibility.autoVmOptimizations}
       
       # Applied Configuration
-      CONFIGURED_GPU_TYPE=${config.mySystem.hardware.gpu}
+      DETECTED_GPU_VENDOR=${gpuVendor}
       
       # This file is for informational purposes only
       # Configuration is applied automatically through NixOS modules
