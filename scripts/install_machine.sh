@@ -1030,14 +1030,41 @@ install_nixos() {
   # Preview and confirm hardware configuration (now using the correct one)
   preview_hardware_config || return 1
 
-  log_info "Starting NixOS installation..."
-  if sudo nixos-install --no-root-password --flake ".#$SELECTED_MACHINE" --root /mnt; then
-    log_success "NixOS installation completed successfully!"
-    return 0
+  # Copy generated hardware config to repository structure for flake access
+  local repo_hw_config="./machines/$SELECTED_MACHINE/hardware-configuration.nix"
+  local generated_hw_config="/mnt/etc/nixos/hardware-configuration.nix"
+  
+  log_info "Temporarily copying hardware config to repository structure..."
+  if [[ -f "$generated_hw_config" ]]; then
+    cp "$generated_hw_config" "$repo_hw_config"
+    log_info "Hardware config copied to $repo_hw_config"
+    
+    # Stage the file with git so flake can see it
+    git add "$repo_hw_config"
+    log_info "Hardware config staged with git for flake access"
   else
-    log_error "NixOS installation failed!"
+    log_error "Generated hardware config not found at $generated_hw_config"
     return 1
   fi
+
+  log_info "Starting NixOS installation..."
+  local install_success=0
+  if sudo nixos-install --no-root-password --flake ".#$SELECTED_MACHINE" --root /mnt; then
+    log_success "NixOS installation completed successfully!"
+    install_success=1
+  else
+    log_error "NixOS installation failed!"
+    install_success=0
+  fi
+
+  # Clean up temporary hardware config from repository
+  log_info "Cleaning up temporary hardware config from repository..."
+  if [[ -f "$repo_hw_config" ]]; then
+    rm "$repo_hw_config"
+    log_info "Temporary hardware config removed from repository"
+  fi
+
+  return $((1 - install_success))
 }
 
 # Hardware configuration commit functionality removed to simplify installation
@@ -1087,14 +1114,28 @@ validate_and_fix_hardware_config() {
     return 1
   fi
 
-  # Simple validation - just check that the file exists and has basic content
-  if grep -q "fileSystems" "$hw_config" && grep -q "boot.loader" "$hw_config"; then
-    log_success "✅ Hardware configuration appears valid"
-    log_info "Generated hardware config contains filesystem and bootloader configuration"
+  # Validate essential hardware configuration content
+  local has_filesystems=false has_hardware=false
+
+  if grep -q "fileSystems" "$hw_config"; then
+    has_filesystems=true
+    log_success "✅ Filesystem configuration found"
+  fi
+
+  # Check for hardware-specific content (kernel modules, CPU, etc.)
+  if grep -qE "(boot\.initrd\.|hardware\.cpu\.|boot\.kernelModules)" "$hw_config"; then
+    has_hardware=true
+    log_success "✅ Hardware-specific configuration found"
+  fi
+
+  if $has_filesystems && $has_hardware; then
+    log_success "✅ Hardware configuration appears complete"
+    return 0
+  elif $has_filesystems; then
+    log_info "✅ Hardware configuration contains filesystem config (bootloader config is in flake)"
     return 0
   else
-    log_warn "⚠️  Hardware configuration may be incomplete"
-    log_info "This might be normal for some configurations"
+    log_warn "⚠️  Hardware configuration may be incomplete - missing filesystem config"
     return 0
   fi
 }
