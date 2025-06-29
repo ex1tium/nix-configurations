@@ -45,6 +45,13 @@ with lib;
       server = {
         enable = mkDefault false;
       };
+
+      # Enable BTRFS snapshots for development systems
+      # Provides automatic system and home directory snapshots
+      btrfsSnapshots = {
+        enable = mkDefault false; # Enabled automatically by installer for BTRFS systems
+        autoSnapshots = mkDefault true;
+      };
     };
 
     # Developer-optimized hardware settings

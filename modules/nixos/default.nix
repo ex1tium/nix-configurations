@@ -18,6 +18,7 @@ in
     ./networking.nix
     ./security.nix
     ../validation.nix  # Comprehensive validation and error handling
+    ../features/btrfs-snapshots.nix  # BTRFS snapshots management
   ];
 
   # Modern option definitions with proper types using centralized defaults
@@ -143,6 +144,17 @@ in
             };
             default = {};
             description = "Server-specific configuration";
+          };
+
+          btrfsSnapshots = mkOption {
+            type = types.submodule {
+              options = {
+                enable = mkEnableOption "BTRFS snapshots with Snapper";
+                autoSnapshots = mkEnableOption "automatic timeline snapshots" // { default = true; };
+              };
+            };
+            default = {};
+            description = "BTRFS snapshots configuration";
           };
         };
       };
