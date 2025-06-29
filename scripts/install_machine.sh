@@ -670,8 +670,8 @@ setup_btrfs() {
     fi
   fi
 
-  # Create subvolumes with explicit error checking
-  for sv in @root @home @nix @snapshots; do
+  # Create subvolumes with explicit error checking (using NixOS standard naming)
+  for sv in root home nix snapshots; do
     log_info "Creating BTRFS subvolume: $sv"
 
     if is_dry_run; then
@@ -718,9 +718,9 @@ setup_btrfs() {
   if is_dry_run; then
     log_info "DRY-RUN: Would mount BTRFS subvolumes"
   else
-    # Mount root subvolume
-    if ! sudo mount -o subvol=@root,compress=zstd "$dev" /mnt; then
-      log_error "Failed to mount @root subvolume"
+    # Mount root subvolume (using NixOS standard naming)
+    if ! sudo mount -o subvol=root,compress=zstd "$dev" /mnt; then
+      log_error "Failed to mount root subvolume"
       exit 1
     fi
 
@@ -728,18 +728,18 @@ setup_btrfs() {
     sudo mkdir -p /mnt/{home,nix,.snapshots,boot}
 
     # Mount other subvolumes
-    if ! sudo mount -o subvol=@home,compress=zstd "$dev" /mnt/home; then
-      log_error "Failed to mount @home subvolume"
+    if ! sudo mount -o subvol=home,compress=zstd "$dev" /mnt/home; then
+      log_error "Failed to mount home subvolume"
       exit 1
     fi
 
-    if ! sudo mount -o subvol=@nix,compress=zstd "$dev" /mnt/nix; then
-      log_error "Failed to mount @nix subvolume"
+    if ! sudo mount -o subvol=nix,compress=zstd,noatime "$dev" /mnt/nix; then
+      log_error "Failed to mount nix subvolume"
       exit 1
     fi
 
-    if ! sudo mount -o subvol=@snapshots,compress=zstd "$dev" /mnt/.snapshots; then
-      log_error "Failed to mount @snapshots subvolume"
+    if ! sudo mount -o subvol=snapshots,compress=zstd "$dev" /mnt/.snapshots; then
+      log_error "Failed to mount snapshots subvolume"
       exit 1
     fi
   fi
@@ -766,7 +766,7 @@ verify_btrfs_subvolumes() {
 
   # Simple check: verify mount points exist and are mounted
   local mount_points=("/mnt" "/mnt/home" "/mnt/nix" "/mnt/.snapshots")
-  local subvol_names=("@root" "@home" "@nix" "@snapshots")
+  local subvol_names=("root" "home" "nix" "snapshots")
   local mounted_count=0
 
   for i in "${!mount_points[@]}"; do
@@ -1037,7 +1037,7 @@ validate_and_fix_hardware_config() {
     log_info "Validating BTRFS subvolume configuration..."
 
     # Check that subvolume options are present AND that fsType is btrfs
-    if ! grep -q "subvol=@root" "$hw_config" || ! grep -q 'fsType = "btrfs"' "$hw_config"; then
+    if ! grep -q "subvol=root" "$hw_config" || ! grep -q 'fsType = "btrfs"' "$hw_config"; then
       log_warn "BTRFS configuration missing or incorrect in hardware config"
       log_info "Regenerating hardware config with correct BTRFS subvolume options..."
       fix_btrfs_hardware_config "$hw_config"
@@ -1110,33 +1110,34 @@ fix_btrfs_hardware_config() {
   boot.initrd.availableKernelModules = [ "ahci" "xhci_pci" "virtio_pci" "sr_mod" "virtio_blk" ];
   boot.initrd.kernelModules = [ ];
 
-  # Ensure BTRFS support in initrd
+  # Ensure BTRFS support in initrd and system
   boot.initrd.supportedFilesystems = [ "btrfs" ];
+  boot.supportedFilesystems = [ "btrfs" ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
   fileSystems."/" = {
     device = "/dev/disk/by-uuid/$root_uuid";
     fsType = "btrfs";
-    options = [ "subvol=@root" "compress=zstd" ];
+    options = [ "subvol=root" "compress=zstd" ];
   };
 
   fileSystems."/home" = {
     device = "/dev/disk/by-uuid/$root_uuid";
     fsType = "btrfs";
-    options = [ "subvol=@home" "compress=zstd" ];
+    options = [ "subvol=home" "compress=zstd" ];
   };
 
   fileSystems."/nix" = {
     device = "/dev/disk/by-uuid/$root_uuid";
     fsType = "btrfs";
-    options = [ "subvol=@nix" "compress=zstd" ];
+    options = [ "subvol=nix" "compress=zstd" "noatime" ];
   };
 
   fileSystems."/.snapshots" = {
     device = "/dev/disk/by-uuid/$root_uuid";
     fsType = "btrfs";
-    options = [ "subvol=@snapshots" "compress=zstd" ];
+    options = [ "subvol=snapshots" "compress=zstd" ];
   };
 
   fileSystems."/boot" = {

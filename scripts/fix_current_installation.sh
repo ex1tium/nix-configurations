@@ -42,22 +42,22 @@ main() {
     # Mount the BTRFS filesystem
     log_info "Mounting BTRFS filesystem..."
     
-    # First mount the root subvolume
-    if ! mount -o subvol=@root,compress=zstd "$root_device" /mnt; then
-        log_error "Failed to mount @root subvolume"
+    # First mount the root subvolume (using NixOS standard naming)
+    if ! mount -o subvol=root,compress=zstd "$root_device" /mnt; then
+        log_error "Failed to mount root subvolume"
         log_info "Trying to mount without subvolume options..."
         if ! mount "$root_device" /mnt; then
             log_error "Failed to mount root device"
             exit 1
         fi
     fi
-    
+
     # Create mount points and mount other subvolumes
     mkdir -p /mnt/{home,nix,.snapshots,boot}
-    
-    mount -o subvol=@home,compress=zstd "$root_device" /mnt/home 2>/dev/null || log_warn "Could not mount @home"
-    mount -o subvol=@nix,compress=zstd "$root_device" /mnt/nix 2>/dev/null || log_warn "Could not mount @nix"
-    mount -o subvol=@snapshots,compress=zstd "$root_device" /mnt/.snapshots 2>/dev/null || log_warn "Could not mount @snapshots"
+
+    mount -o subvol=home,compress=zstd "$root_device" /mnt/home 2>/dev/null || log_warn "Could not mount home"
+    mount -o subvol=nix,compress=zstd,noatime "$root_device" /mnt/nix 2>/dev/null || log_warn "Could not mount nix"
+    mount -o subvol=snapshots,compress=zstd "$root_device" /mnt/.snapshots 2>/dev/null || log_warn "Could not mount snapshots"
     
     # Try to mount boot partition
     local boot_devices
@@ -81,7 +81,7 @@ main() {
     grep -A 3 -B 1 'fileSystems\."/"' "$hw_config" || log_warn "Could not find root filesystem config"
     
     # Check if it needs fixing
-    if grep -q 'fsType = "btrfs"' "$hw_config" && grep -q "subvol=@root" "$hw_config"; then
+    if grep -q 'fsType = "btrfs"' "$hw_config" && grep -q "subvol=root" "$hw_config"; then
         log_success "Hardware configuration already looks correct!"
         log_info "The boot issue may be caused by something else"
         exit 0
@@ -126,31 +126,32 @@ main() {
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
-  # Ensure BTRFS support in initrd
+  # Ensure BTRFS support in initrd and system
   boot.initrd.supportedFilesystems = [ "btrfs" ];
+  boot.supportedFilesystems = [ "btrfs" ];
 
   fileSystems."/" = {
     device = "/dev/disk/by-uuid/$root_uuid";
     fsType = "btrfs";
-    options = [ "subvol=@root" "compress=zstd" ];
+    options = [ "subvol=root" "compress=zstd" ];
   };
 
   fileSystems."/home" = {
     device = "/dev/disk/by-uuid/$root_uuid";
     fsType = "btrfs";
-    options = [ "subvol=@home" "compress=zstd" ];
+    options = [ "subvol=home" "compress=zstd" ];
   };
 
   fileSystems."/nix" = {
     device = "/dev/disk/by-uuid/$root_uuid";
     fsType = "btrfs";
-    options = [ "subvol=@nix" "compress=zstd" ];
+    options = [ "subvol=nix" "compress=zstd" "noatime" ];
   };
 
   fileSystems."/.snapshots" = {
     device = "/dev/disk/by-uuid/$root_uuid";
     fsType = "btrfs";
-    options = [ "subvol=@snapshots" "compress=zstd" ];
+    options = [ "subvol=snapshots" "compress=zstd" ];
   };
 
   fileSystems."/boot" = {
