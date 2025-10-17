@@ -63,7 +63,6 @@ LUKS_PASSPHRASE_FILE=""
 
 DRY_RUN=0 NON_INTERACTIVE=0 QUIET=0 DEBUG=0 FORCE_YES=0
 readonly ORIGINAL_ARGS=("$@")
-readonly NIX_FLAGS="$(get_nix_flags)"
 
 ###############################################################################
 # 2.  CLI parsing
@@ -98,6 +97,7 @@ EOF
 }
 
 parse_arguments() {
+  # shellcheck disable=SC2034  # FORCE_YES, NO_COLOR exported to common.sh
   while [[ $# -gt 0 ]]; do
     case $1 in
       -m|--machine)     SELECTED_MACHINE=$2; shift 2 ;;
@@ -246,9 +246,10 @@ select_filesystem() {
   fi
   echo "  ${GREEN}[1]${NC} ${GREEN}🌳🌿🍃✨⏰${NC} BTRFS ${GREEN}(TIME TRAVEL SNAPSHOTS!)${NC} ${GREEN}🌳🌿🍃✨⏰${NC}  ${GREEN}[2]${NC} ${BLUE}💾🔧⚡🎯${NC} EXT4 ${BLUE}(CLASSIC BEAST!)${NC} ${BLUE}💾🔧⚡🎯${NC}"
   read -rp "${YELLOW}🌟💫 CHOOSE YOUR FILESYSTEM POWER: 💫🌟${NC} " choice
+  # shellcheck disable=SC2034  # ENABLE_SNAPSHOTS used in partition setup
   case $choice in
     2) SELECTED_FILESYSTEM="ext4"; ENABLE_SNAPSHOTS=0 ;;   # ext4
-    *) SELECTED_FILESYSTEM="btrfs"; ENABLE_SNAPSHOTS=1 ;;  # default = btrfs
+    *) SELECTED_FILESYSTEM="btrfs"; ENABLE_SNAPSHOTS=1 ;;  # default = btrfs with snapshots
   esac
 }
 
@@ -484,7 +485,7 @@ validate_clean_disk_state() {
 
   # Check for any remaining mounts under /mnt
   local remaining_mounts
-  remaining_mounts=$(mount | grep ' /mnt' | wc -l)
+  remaining_mounts=$(mount | grep -c ' /mnt')
   if (( remaining_mounts > 0 )); then
     log_error "ERROR: Found $remaining_mounts remaining mount points under /mnt"
     mount | grep ' /mnt'
@@ -1010,7 +1011,7 @@ preview_hardware_config() {
   # Display the complete hardware configuration
   echo "${GREEN}✨🎊🎉🔥 COMPLETE HARDWARE CONFIGURATION OF PURE AWESOMENESS: 🔥🎉🎊✨${NC}"
   echo "${WHITE}🌟 (This LEGENDARY configuration will be used for installation!) 🌟${NC}"
-  cat "$generated_hw_config" | sed 's/^/  /'
+  sed 's/^/  /' "$generated_hw_config"
   echo
 
   if ! confirm "Do you want to proceed with this hardware configuration?"; then
@@ -1201,8 +1202,8 @@ verify_bootloader_installation() {
       fi
 
     # Check for GRUB - need more specific detection to avoid Windows false positives
-    elif ([[ -f /mnt/boot/EFI/BOOT/BOOTX64.EFI ]] || [[ -f /mnt/boot/efi/EFI/BOOT/BOOTX64.EFI ]]) &&
-         ([[ -f /mnt/boot/grub/grub.cfg ]] || [[ -f /mnt/boot/EFI/*/grubx64.efi ]] || [[ -f /mnt/boot/efi/EFI/*/grubx64.efi ]]); then
+    elif { [[ -f /mnt/boot/EFI/BOOT/BOOTX64.EFI ]] || [[ -f /mnt/boot/efi/EFI/BOOT/BOOTX64.EFI ]]; } &&
+         { [[ -f /mnt/boot/grub/grub.cfg ]] || [[ -d /mnt/boot/EFI ]] && ls /mnt/boot/EFI/*/grubx64.efi &>/dev/null || [[ -d /mnt/boot/efi/EFI ]] && ls /mnt/boot/efi/EFI/*/grubx64.efi &>/dev/null; }; then
       log_info "GRUB bootloader detected"
 
     else

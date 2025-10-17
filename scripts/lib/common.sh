@@ -21,10 +21,15 @@ shopt -s inherit_errexit lastpipe
 # 1. Colour handling – respect $NO_COLOR
 # -----------------------------------------------------------------------------#
 if [[ -z "${NO_COLOR:-}" ]] && [[ -t 1 ]] && command -v tput &>/dev/null; then
-    readonly RED=$(tput setaf 1)    GREEN=$(tput setaf 2)
-    readonly YELLOW=$(tput setaf 3) BLUE=$(tput setaf 4)
-    readonly PURPLE=$(tput setaf 5) CYAN=$(tput setaf 6)
-    readonly WHITE=$(tput setaf 7)  NC=$(tput sgr0)
+    RED=$(tput setaf 1)
+    GREEN=$(tput setaf 2)
+    YELLOW=$(tput setaf 3)
+    BLUE=$(tput setaf 4)
+    PURPLE=$(tput setaf 5)
+    CYAN=$(tput setaf 6)
+    WHITE=$(tput setaf 7)
+    NC=$(tput sgr0)
+    readonly RED GREEN YELLOW BLUE PURPLE CYAN WHITE NC
 else
     RED='' GREEN='' YELLOW='' BLUE='' PURPLE='' CYAN='' WHITE='' NC=''
 fi
@@ -88,12 +93,14 @@ print_header() {                    # print_header [title] [version]
     local ver=${2:-}
 
     # Dynamic box dimensions based on terminal width
-    local term_width=$(get_terminal_width)
+    local term_width
+    term_width=$(get_terminal_width)
     local box_width=$((term_width > 100 ? 100 : term_width - 4))
     local inner_width=$((box_width - 2))
 
     # Get appropriate box characters
-    local box_chars=$(get_box_chars)
+    local box_chars
+    box_chars=$(get_box_chars)
     local tl=${box_chars:0:1} hr=${box_chars:1:1} tr=${box_chars:2:1}
     local vr=${box_chars:3:1} bl=${box_chars:4:1} br=${box_chars:5:1}
 
@@ -129,7 +136,8 @@ print_step() {                      # print_step <n> <total> <desc>
         local percentage=$(( ($1 * 100) / $2 ))
 
         # Dynamic width calculation
-        local term_width=$(get_terminal_width)
+        local term_width
+        term_width=$(get_terminal_width)
         local box_width=$((term_width > 80 ? 80 : term_width - 4))
         local inner_width=$((box_width - 2))
 
@@ -138,17 +146,21 @@ print_step() {                      # print_step <n> <total> <desc>
         local progress=$(( ($1 * bar_width) / $2 ))
 
         # Get box characters
-        local box_chars=$(get_box_chars)
+        local box_chars
+        box_chars=$(get_box_chars)
         local tl=${box_chars:8:1} hr=${box_chars:7:1} tr=${box_chars:9:1}
         local vr=${box_chars:6:1} bl=${box_chars:10:1} br=${box_chars:11:1}
 
         # Progress bar characters (always use ASCII for better compatibility)
-        local filled=$(printf '%*s' "$progress" '' | tr ' ' '#')
-        local empty=$(printf '%*s' "$((bar_width - progress))" '' | tr ' ' '-')
+        local filled
+        filled=$(printf '%*s' "$progress" '' | tr ' ' '#')
+        local empty
+        empty=$(printf '%*s' "$((bar_width - progress))" '' | tr ' ' '-')
 
         # Calculate header padding
         local step_desc="$step_text - $desc"
-        local header_content_width=$(text_width "$step_desc")
+        local header_content_width
+        header_content_width=$(text_width "$step_desc")
         local header_padding=$((box_width - header_content_width - 6))
         (( header_padding < 0 )) && header_padding=0
 
@@ -164,7 +176,7 @@ print_step() {                      # print_step <n> <total> <desc>
 # Spinner (tty only)
 spinner() {                          # spinner <pid> <message>
     (( QUIET )) && { wait "$1"; return $?; }
-    local pid=$1 msg=$2 sp='|/-\' i=0
+    local pid=$1 msg=$2 sp='|/-\' i=0  # sp contains spinner characters
     (
         while kill -0 "$pid" 2>/dev/null; do
             printf '\r%s%s %c%s' "$BLUE" "$msg" "${sp:i++%4:1}" "$NC"
@@ -213,9 +225,10 @@ get_terminal_width() {
 text_width() {
     local text="$1"
     # Remove ANSI escape sequences
-    text=$(echo "$text" | sed 's/\x1b\[[0-9;]*m//g')
+    text="${text//\\x1b\\[[0-9;]*m/}"
     # Emojis typically take 2 character widths in most terminals
-    local emoji_count=$(echo "$text" | grep -o '[🚀✨🔵💥⚠️🔍🌳📁💾🖥️🤝🛠️💥🔐🎉📝]' | wc -l)
+    local emoji_count
+    emoji_count=$(grep -o '[🚀✨🔵💥⚠️🔍🌳📁💾🖥️🤝🛠️💥🔐🎉📝]' <<< "$text" | wc -l)
     local base_length=${#text}
     echo $(( base_length + emoji_count ))
 }
@@ -223,7 +236,8 @@ text_width() {
 # Center text within given width
 center_text() {
     local text="$1" width="$2"
-    local text_len=$(text_width "$text")
+    local text_len
+    text_len=$(text_width "$text")
     local padding=$(( (width - text_len) / 2 ))
     (( padding < 0 )) && padding=0
     printf '%*s%s%*s' "$padding" '' "$text" "$((width - text_len - padding))" ''
@@ -247,12 +261,14 @@ print_box() {                      # print_box <color> <title> [content_lines...
     local content_lines=("$@")
 
     # Dynamic width calculation
-    local term_width=$(get_terminal_width)
+    local term_width
+    term_width=$(get_terminal_width)
     local box_width=$((term_width > 100 ? 100 : term_width - 4))
     local inner_width=$((box_width - 2))
 
     # Get box characters
-    local box_chars=$(get_box_chars)
+    local box_chars
+    box_chars=$(get_box_chars)
     local tl=${box_chars:0:1} hr=${box_chars:1:1} tr=${box_chars:2:1}
     local vr=${box_chars:3:1} bl=${box_chars:4:1} br=${box_chars:5:1}
 
@@ -403,7 +419,9 @@ get_nix_eval_flags() {
 detect_primary_user_from_flake() {  # detect_primary_user_from_flake [dir]
     local dir=${1:-.} u flags; flags=$(get_nix_eval_flags)
     if command -v nix &>/dev/null; then
+        # shellcheck disable=SC2086  # $flags needs word-splitting for multiple arguments
         u=$(nix $flags eval --impure --expr "((import $dir/.).globalConfig).defaultUser or \"\"" --raw 2>/dev/null)
+        # shellcheck disable=SC2086  # $flags needs word-splitting for multiple arguments
         [[ -z $u ]] && u=$(nix $flags eval "$dir#globalConfig.defaultUser" --raw 2>/dev/null)
     fi
     [[ -z $u && -f $dir/flake.nix ]] && u=$(grep -o 'defaultUser *= *"[^"]*"' "$dir/flake.nix" | head -1 | cut -d'"' -f2)
@@ -420,6 +438,7 @@ validate_nix_build() {             # validate_nix_build <flake_ref>
     fi
 
     log_info "Using Nix flags for build validation..."
+    # shellcheck disable=SC2086  # $flags needs word-splitting for multiple arguments
     if ! nix $flags build --dry-run "$flake_ref" &>/tmp/build_test.log; then
         log_error "Configuration build validation failed"
         log_error "Build log (last 20 lines):"
@@ -668,8 +687,8 @@ create_dual_boot_partitions() {    # create_dual_boot_partitions <disk>
 
     # Create root partition in free space
     if ! is_dry_run; then
-        local free_start free_end
-        read -r free_start free_end < <(
+        local free_start _
+        read -r free_start _ < <(
             parted "$disk" unit MiB print free |
             awk '/Free Space/ {s=$1; e=$2} END{print s,e}' |
             sed 's/MiB//g'
