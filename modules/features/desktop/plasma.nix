@@ -111,8 +111,8 @@ with lib;
     services.xserver = {
       enable = true;
 
-      # Touchpad configuration is now handled by display-server.nix with the new structure
-      # KDE-specific overrides can be added here if needed
+      # Touchpad configuration is handled by display-server.nix via services.libinput
+      # This module only configures KDE-specific X11 settings
     };
 
     # Networking configuration is handled by common.nix

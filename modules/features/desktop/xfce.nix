@@ -17,7 +17,9 @@ with lib;
       enable = true;
       desktopManager.xfce.enable = true;
 
-      # Display manager - LightDM for XFCE (lighter than SDDM)
+      # Display manager - LightDM for XFCE
+      # LightDM is lightweight and well-suited for XFCE on low-spec systems
+      # Alternative: ly (minimal) or greetd (modern), but LightDM provides better XFCE integration
       displayManager.lightdm = {
         enable = true;
         greeters.gtk = {
@@ -37,7 +39,7 @@ with lib;
           };
         };
         extraSeatDefaults = ''
-          # Force X11 for XFCE (Wayland support is experimental)
+          # Use X11 session for XFCE (Wayland support is experimental)
           user-session=xfce
         '';
       };

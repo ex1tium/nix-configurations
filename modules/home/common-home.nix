@@ -4,16 +4,11 @@
 { ... }:
 
 {
-  # Import ZSH configuration
-  imports = [
-    ./zsh.nix
-  ];
-
   # Enable home-manager
   programs.home-manager.enable = true;
 
   # Specify package versions
-  home.stateVersion = "24.11";  # Use the same version as system config
+  home.stateVersion = "25.05";  # Use the same version as system config
 
   # Note: nixpkgs.config is inherited from system when using useGlobalPkgs = true
   # No need to set allowUnfree here as it's already set in system configuration

@@ -74,6 +74,18 @@ with lib;
       defaultBrowser = "firefox";    # Firefox as default browser
       defaultTerminal = "konsole";   # Konsole for Plasma, overridden for XFCE
       defaultEditor = "nano";        # Nano as user-friendly editor
+
+      # Desktop environment-specific application mappings
+      terminalByEnvironment = {
+        plasma = "konsole";          # KDE Plasma uses Konsole
+        xfce = "xfce4-terminal";     # XFCE uses its native terminal
+      };
+
+      # LibreOffice plugin selection by desktop environment
+      libreOfficePluginByEnvironment = {
+        plasma = "kf5";              # KDE Plasma uses KF5 plugin
+        xfce = "gtk3";               # XFCE uses GTK3 plugin
+      };
       
       # Desktop service defaults
       enableFlatpak = true;          # Flatpak enabled for additional software

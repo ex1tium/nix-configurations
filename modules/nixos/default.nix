@@ -173,7 +173,7 @@ in
                     description = "Enable automatic cleanup of old root snapshots";
                   };
                   retentionPolicy = mkOption {
-                    type = types.attrs;
+                    type = types.attrsOf types.str;
                     default = {
                       TIMELINE_MIN_AGE = "1800";      # 30 minutes
                       TIMELINE_LIMIT_HOURLY = "10";   # Keep 10 hourly snapshots
@@ -235,7 +235,7 @@ in
           };
           enableVirtualization = mkEnableOption "hardware virtualization support";
           enableRemoteDesktop = mkEnableOption "remote desktop hardware acceleration";
-          # gpu option is now defined by the enhanced hardware detection module
+          # GPU configuration is defined in hardware-compatibility.nix module
         };
       };
       default = {};

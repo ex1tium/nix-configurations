@@ -76,13 +76,13 @@ with lib;
       packages.networkTools ++
       packages.archiveTools ++
       packages.securityTools ++
-      [ pkgs.browsh ] ++  # Additional core-specific package
-      optionals config.mySystem.features.desktop.enable [
+      (with pkgs; [ browsh ]) ++  # Text-based web browser for headless/remote systems
+      optionals config.mySystem.features.desktop.enable (with pkgs; [
         # Desktop-specific packages
-        pkgs.pinentry-gtk2
-        pkgs.xsel
-        pkgs.xclip
-      ];
+        pinentry-gtk2
+        xsel
+        xclip
+      ]);
 
     # Environment variables
     environment.variables = {

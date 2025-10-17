@@ -12,7 +12,7 @@
   config = {
     # Basic Home Manager configuration
     home = {
-      stateVersion = "24.11";
+      stateVersion = "25.05";
 
       # Session variables
       sessionVariables = {

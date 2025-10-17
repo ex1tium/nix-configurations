@@ -7,6 +7,9 @@
 with lib;
 
 let
+  # Import centralized defaults
+  defaults = import ../../defaults.nix { inherit lib; };
+
   desktopCfg = config.mySystem.features.desktop;
   desktopEnvironment = desktopCfg.environment;
   isLowSpec = desktopCfg.lowSpec or false;
@@ -152,20 +155,16 @@ in
     # Desktop-specific environment variables for applications
     environment.sessionVariables = {
       # Browser configuration
-      BROWSER = "firefox";
-      
-      # Default applications
-      TERMINAL = if desktopEnvironment == "plasma" 
-        then "konsole"
-        else "xfce4-terminal";
-        
+      BROWSER = defaults.features.desktop.defaultBrowser;
+
+      # Default applications - centralized in defaults.nix for IDE tooling support
+      TERMINAL = defaults.features.desktop.terminalByEnvironment.${desktopEnvironment};
+
       # Application-specific settings
       GIMP2_DIRECTORY = "$HOME/.config/GIMP/2.10";
-      
-      # LibreOffice configuration
-      SAL_USE_VCLPLUGIN = if desktopEnvironment == "plasma" 
-        then "kf5" 
-        else "gtk3";
+
+      # LibreOffice configuration - centralized in defaults.nix for IDE tooling support
+      SAL_USE_VCLPLUGIN = defaults.features.desktop.libreOfficePluginByEnvironment.${desktopEnvironment};
     };
 
     # Assertions for package consistency
