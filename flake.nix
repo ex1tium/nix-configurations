@@ -48,6 +48,15 @@
         # Features are now configured in the profile modules
         # Machine-specific overrides can be added in machine configuration
       };
+
+      magos = {
+        system = "x86_64-linux";
+        profile = "developer";
+        hostname = "magos";
+        users = [ globalConfig.defaultUser ];
+        # Development machine with dual-boot Windows 11 + NixOS
+        # Features configured in developer profile (desktop + development + virtualization)
+      };
     };
 
     # Helper function to create system configurations

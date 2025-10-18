@@ -122,15 +122,20 @@ in
     iommuParams = if cfg.cpu.vendor == "intel" then [ "intel_iommu=on" "iommu=pt" ]
                   else if cfg.cpu.vendor == "amd" then [ "amd_iommu=on" "iommu=pt" ]
                   else [];
+
+    # Safely access virtualization feature options with defaults
+    enableKvm = config.mySystem.features.virtualization.enableKvm or true;
+    enableKvmNested = config.mySystem.features.virtualization.enableKvmNested or false;
+    enableGpuPassthrough = config.mySystem.features.virtualization.enableGpuPassthrough or false;
   in {
     # Load KVM modules only on physical hosts or on VMs with nested virt enabled.
-    boot.kernelModules = optionals (config.mySystem.features.virtualization.enableKvm && (!cfg.virtualization.isVm || config.mySystem.features.virtualization.enableKvmNested)) kvmModules;
+    boot.kernelModules = optionals (enableKvm && (!cfg.virtualization.isVm || enableKvmNested)) kvmModules;
 
     # Also add KVM modules to the initrd under the same conditions.
-    boot.initrd.availableKernelModules = optionals (config.mySystem.features.virtualization.enableKvm && (!cfg.virtualization.isVm || config.mySystem.features.virtualization.enableKvmNested)) kvmModules;
+    boot.initrd.availableKernelModules = optionals (enableKvm && (!cfg.virtualization.isVm || enableKvmNested)) kvmModules;
 
     # Generate kernel parameters for IOMMU based on detected CPU
-    boot.kernelParams = optionals config.mySystem.features.virtualization.enableGpuPassthrough iommuParams;
+    boot.kernelParams = optionals enableGpuPassthrough iommuParams;
 
     # Add warnings for debugging
     warnings = optionals cfg.debug [
