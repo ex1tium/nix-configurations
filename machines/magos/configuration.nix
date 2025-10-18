@@ -56,9 +56,10 @@
 
     # Kernel parameters optimized for UFS/eUFS and battery life
     kernelParams = [
-      "acpi=off" # Disable ACPI entirely (HP 14-ep0807no has broken ACPI)
       "loglevel=7" # Verbose logging to see what's happening
       "systemd.show_status=true"
+      "rd.debug" # Enable initrd debugging
+      "rd.udev.debug" # Enable udev debugging in initrd
     ];
   };
 

@@ -17,10 +17,12 @@
   boot.extraModulePackages = [ ];
 
   # Root filesystem: Btrfs on /dev/sdb6 with @ subvolume
+  # NOTE: Using UUID for reliability, but can fallback to /dev/sdb if UUID detection fails
   fileSystems."/" =
     { device = "/dev/disk/by-uuid/0c1e6e2c-9459-48b6-915a-9d60b1100b88";
       fsType = "btrfs";
       options = [ "subvol=@" "compress=zstd" "ssd" "noatime" "space_cache=v2" "autodefrag" ];
+      neededForBoot = true;
     };
 
   # Nix store: separate subvolume with NOCOW for reduced write amplification
