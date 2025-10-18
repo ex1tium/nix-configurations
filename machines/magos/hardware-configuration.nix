@@ -12,7 +12,7 @@
 
   # UFS/eUFS storage device support
   boot.initrd.availableKernelModules = [ "ufshcd_pci" "xhci_pci" "usb_storage" "sd_mod" ];
-  boot.initrd.kernelModules = [ ];
+  boot.initrd.kernelModules = [ "ufshcd_pci" ]; # Force UFS module to load early
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
