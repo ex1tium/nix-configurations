@@ -61,8 +61,8 @@
       "systemd.show_status=auto"
       "rd.udev.log_level=3"
       "no_console_suspend" # Prevent suspend during console operations
-      "acpi_osi=Linux" # Fix ACPI compatibility issues
-      "acpi_enforce_resources=lax" # Allow ACPI resource access
+      "intel_idle.max_cstate=1" # Disable deep C-states (fixes i3-N305 freeze)
+      "processor.max_cstate=1" # Disable ACPI C-states
     ];
   };
 
