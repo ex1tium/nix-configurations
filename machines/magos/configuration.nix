@@ -56,13 +56,9 @@
 
     # Kernel parameters optimized for UFS/eUFS and battery life
     kernelParams = [
-      "quiet"
-      "loglevel=3"
-      "systemd.show_status=auto"
-      "rd.udev.log_level=3"
-      "no_console_suspend" # Prevent suspend during console operations
-      "intel_idle.max_cstate=1" # Disable deep C-states (fixes i3-N305 freeze)
-      "processor.max_cstate=1" # Disable ACPI C-states
+      "acpi=off" # Disable ACPI entirely (HP 14-ep0807no has broken ACPI)
+      "loglevel=7" # Verbose logging to see what's happening
+      "systemd.show_status=true"
     ];
   };
 
