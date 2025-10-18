@@ -56,10 +56,11 @@
 
     # Kernel parameters optimized for UFS/eUFS and battery life
     kernelParams = [
-      "loglevel=7" # Verbose logging to see what's happening
-      "systemd.show_status=true"
-      "rd.debug" # Enable initrd debugging
-      "rd.udev.debug" # Enable udev debugging in initrd
+      "quiet"
+      "loglevel=3"
+      "systemd.show_status=auto"
+      "rd.udev.log_level=3"
+      "no_console_suspend" # Prevent suspend during console operations
     ];
   };
 
