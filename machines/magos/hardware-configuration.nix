@@ -59,7 +59,8 @@
     };
 
   # EFI System Partition: shared with Windows (vfat)
-  fileSystems."/boot/efi" =
+  # IMPORTANT: systemd-boot expects this at /boot, not /boot/efi
+  fileSystems."/boot" =
     { device = "/dev/disk/by-uuid/52FD-472F";
       fsType = "vfat";
       options = [ "fmask=0022" "dmask=0022" ];
