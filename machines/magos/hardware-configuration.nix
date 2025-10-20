@@ -11,8 +11,8 @@
     ];
 
   # UFS/eUFS storage device support
-  boot.initrd.availableKernelModules = [ "ufshcd_pci" "xhci_pci" "usb_storage" "sd_mod" ];
-  boot.initrd.kernelModules = [ ];
+  boot.initrd.availableKernelModules = [ "ufshcd_pci" "xhci_pci" "usb_storage" "sd_mod" "i915" ];
+  boot.initrd.kernelModules = [ "i915" ]; # Load Intel GPU driver early for display
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 

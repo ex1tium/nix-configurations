@@ -61,6 +61,11 @@
       "systemd.show_status=auto"
       "rd.udev.log_level=3"
       "no_console_suspend" # Prevent suspend during console operations
+      # Intel GPU parameters (i3-N305 iGPU)
+      "i915.enable_guc=2" # Enable GuC firmware loading
+      "i915.enable_fbc=1" # Enable framebuffer compression
+      "i915.enable_psr=1" # Enable panel self refresh
+      "i915.fastboot=1" # Enable fastboot
     ];
   };
 
