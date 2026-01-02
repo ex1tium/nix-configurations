@@ -10,7 +10,7 @@ let
   isWaylandEnabled = desktopCfg.enableWayland;
   isX11Enabled = desktopCfg.enableX11;
   desktopEnvironment = desktopCfg.environment;
-  gpuType = config.mySystem.hardware.gpu;
+  gpuType = config.mySystem.hardware.gpu.vendor;
   
   # GPU-vendor specific X11 video drivers
   x11VideoDrivers = with pkgs.xorg;
