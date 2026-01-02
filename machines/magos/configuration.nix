@@ -55,19 +55,17 @@
     loader.timeout = 3;
 
     # Kernel parameters optimized for UFS/eUFS and battery life
-    # NOTE: HP 14-ep0807no with i3-N305 has broken ACPI firmware
-    # These parameters are conservative to avoid triggering ACPI bugs
     kernelParams = [
       "quiet"
       "loglevel=3"
       "systemd.show_status=auto"
       "rd.udev.log_level=3"
       "no_console_suspend" # Prevent suspend during console operations
-      # Disable problematic i915 features for i3-N305 compatibility
-      "i915.enable_guc=0" # Disable GuC firmware (can cause hangs on some hardware)
-      "i915.enable_fbc=0" # Disable framebuffer compression
-      "i915.enable_psr=0" # Disable panel self refresh
-      "i915.fastboot=0" # Disable fastboot
+      # Intel GPU parameters (i3-N305 iGPU)
+      "i915.enable_guc=2" # Enable GuC firmware loading
+      "i915.enable_fbc=1" # Enable framebuffer compression
+      "i915.enable_psr=1" # Enable panel self refresh
+      "i915.fastboot=1" # Enable fastboot
     ];
   };
 
@@ -111,11 +109,6 @@
       USB_AUTOSUSPEND_USBHID = 1;
     };
   };
-
-  # Disable thermald - conflicts with broken ACPI on HP 14-ep0807no
-  # The ACPI thermal management errors indicate firmware issues
-  # thermald can cause boot hangs when ACPI is broken
-  services.thermald.enable = false;
 
   # Disable hibernation to avoid NTFS dirty state in dual-boot
   # (Windows hibernation can cause issues when dual-booting)
@@ -193,10 +186,5 @@
     };
     openFirewall = true;
   };
-
-  # Disable services that may interfere with boot on broken ACPI hardware
-  # These are enabled by default in desktop profile but can cause hangs
-  services.fwupd.enable = lib.mkForce false; # Firmware updates can trigger ACPI issues
-  services.geoclue2.enable = lib.mkForce false; # Location services not needed
 }
 
