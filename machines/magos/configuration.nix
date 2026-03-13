@@ -34,7 +34,7 @@
 
     # Hardware settings for UFS/eUFS device
     hardware = {
-      kernel = "latest"; # Use latest kernel for better UFS support
+      kernel = "stable"; # Latest kernel panicked in stage-1; pin to stable for boot reliability
       enableVirtualization = true; # Enable for development (Docker, libvirt)
       enableRemoteDesktop = false;
 
@@ -71,8 +71,24 @@
 
   # Nix settings for this machine
   nix.settings = {
-    cores = 4;
-    max-jobs = "auto";
+    cores = 2;
+    max-jobs = 1;
+    keep-going = true;
+    warn-dirty = false;
+    max-free = 2147483648;
+    min-free = 536870912;
+  };
+
+  # Aggressive local store cleanup for limited disk space
+  nix.gc = {
+    automatic = lib.mkForce true;
+    dates = lib.mkForce "daily";
+    options = lib.mkForce "--delete-older-than 3d";
+  };
+
+  nix.optimise = {
+    automatic = lib.mkForce true;
+    dates = lib.mkForce [ "weekly" ];
   };
 
   # Networking configuration
@@ -87,6 +103,10 @@
       allowedTCPPorts = [ 22 ]; # SSH only
     };
   };
+
+  # Homelab connectivity clients
+  services.twingate.enable = true;
+  services.netbird.enable = true;
 
   # Time and locale (inherited from base profile, but can override)
   time.timeZone = lib.mkDefault "Europe/Helsinki";

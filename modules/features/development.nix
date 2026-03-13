@@ -85,7 +85,18 @@ with lib;
     # Development Programs
     programs = {
       # Nix Development
-      nix-ld.enable = true;
+      nix-ld = {
+        enable = true;
+        libraries = with pkgs; [
+          stdenv.cc.cc
+          zlib
+          openssl
+          curl
+          xz
+          icu
+          libunwind
+        ];
+      };
       
       # Shell Integration
       direnv = {

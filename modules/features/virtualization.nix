@@ -126,6 +126,7 @@ with lib;
       docker
       docker-compose
       docker-buildx
+      devcontainer
       
       # Podman tools
       podman

@@ -79,6 +79,15 @@ with lib;
       
       # Docker
       "docker.showStartPage" = false;
+      "dev.containers.dockerPath" = "${pkgs.docker}/bin/docker";
+      "dev.containers.dockerComposePath" = "${pkgs.docker-compose}/bin/docker-compose";
+      "dev.containers.defaultExtensions" = [
+        "ms-azuretools.vscode-docker"
+        "ms-python.python"
+        "golang.go"
+        "rust-lang.rust-analyzer"
+        "bbenoist.nix"
+      ];
       
       # Performance
       "files.watcherExclude" = {

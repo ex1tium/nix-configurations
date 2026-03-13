@@ -56,7 +56,15 @@ with lib;
       ];
       
       # Enable firmware updates
-      kernelPackages = mkDefault pkgs.linuxPackages;
+      kernelPackages =
+        let
+          kernelChoice = config.mySystem.hardware.kernel or "stable";
+        in
+        mkDefault (
+          if kernelChoice == "latest" then pkgs.linuxPackages_latest
+          else if kernelChoice == "lts" then pkgs.linuxPackages_lts
+          else pkgs.linuxPackages
+        );
     };
 
     # Hardware support
