@@ -48,12 +48,21 @@
         # Features are now configured in the profile modules
         # Machine-specific overrides can be added in machine configuration
       };
+
+      magos = {
+        system = "x86_64-linux";
+        profile = "base";
+        hostname = "magos";
+        user = "magos";
+        users = [ "magos" ];
+      };
     };
 
     # Helper function to create system configurations
     mkSystem = { hostname, system ? "x86_64-linux" }:
       let
         machineConfig = machines.${hostname};
+        primaryUser = machineConfig.user or globalConfig.defaultUser;
         profileModule = ./modules/profiles/${machineConfig.profile}.nix;
 
         # Hardware configuration resolution:
@@ -92,7 +101,7 @@
             home-manager = {
               useGlobalPkgs = true;
               useUserPackages = true;
-              users.${globalConfig.defaultUser} = import ./modules/home/default.nix;
+              users.${primaryUser} = import ./modules/home/default.nix;
             };
           }
 

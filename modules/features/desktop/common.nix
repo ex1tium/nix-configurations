@@ -26,7 +26,7 @@ in
     };
 
     # Desktop Audio System - PipeWire (complete configuration)
-  hardware.pulseaudio.enable = false; # Disable PulseAudio
+    services.pulseaudio.enable = false; # Disable PulseAudio
     security.rtkit.enable = mkDefault true; # RealtimeKit for better audio performance
 
     services.pipewire = {

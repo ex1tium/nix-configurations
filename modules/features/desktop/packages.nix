@@ -96,26 +96,21 @@ in
     };
 
     # Application-specific configurations
-    environment.etc = {
-      # Firefox policies (optional)
-      "firefox/policies/policies.json".text = builtins.toJSON {
-        policies = {
-          DisableTelemetry = true;
-          DisableFirefoxStudies = true;
-          EnableTrackingProtection = {
-            Value = true;
-            Locked = true;
-            Cryptomining = true;
-            Fingerprinting = true;
-          };
-          DisablePocket = true;
-          DisableFirefoxAccounts = false;
-          DisableFormHistory = false;
-          DisplayBookmarksToolbar = "never";
-          DisplayMenuBar = "default-off";
-          SearchBar = "unified";
-        };
+    programs.firefox.policies = {
+      DisableTelemetry = true;
+      DisableFirefoxStudies = true;
+      EnableTrackingProtection = {
+        Value = true;
+        Locked = true;
+        Cryptomining = true;
+        Fingerprinting = true;
       };
+      DisablePocket = true;
+      DisableFirefoxAccounts = false;
+      DisableFormHistory = false;
+      DisplayBookmarksToolbar = "never";
+      DisplayMenuBar = "default-off";
+      SearchBar = "unified";
     };
 
     # Application defaults
