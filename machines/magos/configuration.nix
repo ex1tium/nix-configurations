@@ -3,6 +3,7 @@
 {
   imports = [
     ../../modules/features/desktop.nix
+    ../../modules/features/distrobox.nix
   ];
 
   mySystem = {
@@ -17,6 +18,8 @@
       enableX11 = true;
       enableWayland = true;
     };
+
+    features.distrobox.enable = true;
 
     hardware.kernel = "stable";
   };
