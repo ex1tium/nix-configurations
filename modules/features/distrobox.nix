@@ -43,6 +43,14 @@ with lib;
       programs.distrobox = {
         enable = true;
         enableSystemdUnit = true;
+        containers = {
+          fedora-toolbox = {
+            image = "registry.fedoraproject.org/fedora-toolbox:43";
+          };
+          ubuntu-toolbox = {
+            image = "ubuntu:24.04";
+          };
+        };
       };
     };
 

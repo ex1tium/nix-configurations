@@ -21,4 +21,5 @@ Fresh baseline for `magos`, rebuilt from the currently deployed `/etc/nixos` gen
 
 - This machine uses the `base` profile in `flake.nix` and imports the desktop feature module directly in `machines/magos/configuration.nix`.
 - Distrobox is enabled through the dedicated `modules/features/distrobox.nix` module and does not pull in the full virtualization stack.
+- The default Distrobox container set includes `fedora-toolbox` on Fedora 43 and `ubuntu-toolbox` on Ubuntu 24.04.
 - Home Manager is bound to the machine user `magos` through the flake machine definition.
