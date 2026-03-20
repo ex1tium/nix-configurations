@@ -74,6 +74,13 @@
     alsa.enable = true;
     alsa.support32Bit = true;
     pulse.enable = true;
+    wireplumber.extraConfig."10-disable-libcamera-monitor" = {
+      "wireplumber.profiles" = {
+        main = {
+          "monitor.libcamera" = "disabled";
+        };
+      };
+    };
   };
 
   programs.firefox.enable = true;
