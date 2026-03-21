@@ -33,6 +33,8 @@
 
   networking.networkmanager.enable = true;
 
+  services.twingate.enable = true;
+
   powerManagement.enable = true;
   systemd.sleep.extraConfig = ''
     AllowHibernation=no
