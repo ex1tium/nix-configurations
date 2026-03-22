@@ -161,7 +161,12 @@ with lib;
         logRefusedConnections = mkDefault false; # Can be noisy
 
         # Rate limiting
-        pingLimit = mkDefault "1/minute";
+        pingLimit = mkDefault (
+          if config.networking.nftables.enable or false then
+            "1/minute"
+          else
+            "--limit 1/minute --limit-burst 5"
+        );
       };
 
       # System hardening
