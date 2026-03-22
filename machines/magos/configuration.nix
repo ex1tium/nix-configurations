@@ -121,4 +121,20 @@
     btrfs-progs
     cryptsetup
   ];
+
+  specialisation = {
+    rescue.configuration = {
+      imports = [
+        ./specialisations/rescue-common.nix
+        ./specialisations/rescue.nix
+      ];
+    };
+
+    rescue-cli.configuration = {
+      imports = [
+        ./specialisations/rescue-common.nix
+        ./specialisations/rescue-cli.nix
+      ];
+    };
+  };
 }
