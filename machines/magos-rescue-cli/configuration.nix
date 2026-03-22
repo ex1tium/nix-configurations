@@ -1,10 +1,10 @@
 { lib, pkgs, ... }:
 
 {
-  system.nixos.tags = [ "rescue" ];
+  system.nixos.tags = [ "rescue" "cli" ];
 
   mySystem = {
-    hostname = "magos-rescue";
+    hostname = "magos-rescue-cli";
     user = "magos";
     stateVersion = "25.11";
 
@@ -52,6 +52,10 @@
 
   console.keyMap = "fi";
 
+  services.xserver.enable = lib.mkForce false;
+  services.displayManager.sddm.enable = lib.mkForce false;
+  services.desktopManager.plasma6.enable = lib.mkForce false;
+
   services.printing.enable = lib.mkForce false;
 
   services.pulseaudio.enable = false;
@@ -70,7 +74,6 @@
     vim
     curl
     wget
-    vscode
     pciutils
     usbutils
     btrfs-progs

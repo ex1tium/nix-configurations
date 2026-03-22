@@ -74,6 +74,16 @@
           enableHomeManager = false;
           enableSops = false;
         };
+
+        magos-rescue-cli = {
+          system = "x86_64-linux";
+          profile = "rescue-cli";
+          hostname = "magos-rescue-cli";
+          user = "magos";
+          users = [ "magos" ];
+          enableHomeManager = false;
+          enableSops = false;
+        };
       };
 
       # Helper function to create system configurations

@@ -1,5 +1,5 @@
-# Rescue Profile - GUI recovery environment for an installed machine
-# Target: Recovery work with a minimal Plasma session and VS Code available locally
+# Rescue CLI Profile - Minimal recovery environment for an installed machine
+# Target: Low-overhead maintenance, boot repair, and remote recovery tasks
 
 { lib, pkgs, ... }:
 
@@ -8,19 +8,16 @@ with lib;
 {
   imports = [
     ./base.nix
-    ../features/desktop.nix
   ];
 
   mySystem = {
-    hostname = mkDefault "rescue";
+    hostname = mkDefault "rescue-cli";
 
     features = {
       desktop = {
-        enable = mkForce true;
-        environment = mkForce "plasma";
-        displayManager = mkForce "sddm";
-        enableWayland = mkForce true;
-        enableX11 = mkForce true;
+        enable = mkForce false;
+        enableWayland = mkForce false;
+        enableX11 = mkForce false;
         enableRemoteDesktop = mkForce false;
       };
 
@@ -66,7 +63,6 @@ with lib;
     gitFull
     git-lfs
     gh
-    vscode
     btrfs-progs
     cryptsetup
     pciutils
