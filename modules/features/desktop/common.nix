@@ -79,7 +79,7 @@ in
       packages = with pkgs; [
         noto-fonts
         noto-fonts-cjk-sans
-        noto-fonts-emoji
+        noto-fonts-color-emoji
         liberation_ttf
         dejavu_fonts
         fira-code
@@ -90,7 +90,7 @@ in
         nerd-fonts.jetbrains-mono
         nerd-fonts.droid-sans-mono
         nerd-fonts.hack
-        ubuntu_font_family
+        ubuntu-classic
         roboto
         open-sans
       ];

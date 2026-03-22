@@ -95,7 +95,7 @@ with lib;
     
     # Additional security tools
     # lynis
-    # chkrootkit
+    # rkhunter
     # rkhunter
   ];
 

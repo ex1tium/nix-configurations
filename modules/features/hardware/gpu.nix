@@ -22,15 +22,13 @@ in
         extraPackages = with pkgs; [
           intel-media-driver    # VAAPI driver for newer Intel GPUs (>= Broadwell)
           intel-vaapi-driver    # VAAPI driver for older Intel GPUs
-          vaapiIntel           # Legacy VAAPI driver
-          vaapiVdpau           # VDPAU support
+          libva-vdpau-driver
           libvdpau-va-gl       # VDPAU to VA-API bridge
           intel-compute-runtime # OpenCL support
           level-zero           # Level Zero API support
         ];
         extraPackages32 = with pkgs.pkgsi686Linux; [
           intel-vaapi-driver
-          vaapiIntel
         ];
       };
 
@@ -57,7 +55,7 @@ in
         libva-utils                  # VA-API utilities
         vdpauinfo                    # VDPAU info tool
       ] ++ optionals isDesktop [
-        intel-media-sdk              # Intel Media SDK
+        #intel-media-sdk              # Intel Media SDK
       ];
     })
 
@@ -190,7 +188,7 @@ in
       boot.kernelModules = [ "virtio_gpu" ];
       boot.initrd.availableKernelModules = [ "virtio_gpu" ];
 
-      # Add mesa-demos for verifying software rendering (e.g., `glxinfo | grep "OpenGL renderer"`).
+      # Add mesa-demos for verifying software rendering (e.g., `mesa-demos | grep "OpenGL renderer"`).
       environment.systemPackages = with pkgs; [ mesa-demos ];
 
       # Blacklist drivers for physical hardware to avoid conflicts in VMs.
@@ -214,7 +212,6 @@ in
         vulkan-validation-layers
         vulkan-tools
         # OpenGL information and debugging
-        glxinfo
         mesa-demos
       ] ++ optionals isDesktop [
         gpu-viewer                   # GPU information viewer (desktop only)

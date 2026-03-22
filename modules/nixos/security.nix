@@ -122,11 +122,11 @@ with lib;
       environment.systemPackages = with pkgs; [
         # Security tools
         gnupg
-        pinentry
+        pinentry-qt
 
         # System security
         lynis # Security auditing
-        chkrootkit # Rootkit detection
+        #rkhunter # Rootkit detection
         # rkhunter not available in nixpkgs
 
         # Network security
@@ -137,9 +137,6 @@ with lib;
 
         # Password management
         pass # Password store
-        # Pinentry packages (both available, desktop features will choose appropriate one)
-        pinentry-curses
-        pinentry-gtk2
       ];
 
       # GPG configuration
@@ -160,7 +157,7 @@ with lib;
         logRefusedConnections = mkDefault false; # Can be noisy
 
         # Rate limiting
-        pingLimit = mkDefault "--limit 1/minute --limit-burst 5";
+        pingLimit = mkDefault "1/minute";
       };
 
       # System hardening

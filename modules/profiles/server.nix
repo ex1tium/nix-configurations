@@ -85,7 +85,7 @@ with lib;
   # - prometheus, grafana - run in containers instead
   # - database clients (postgresql, mysql, redis) - use containers
   # - infrastructure tools (terraform, ansible) - install per-machine if needed
-  # - additional security tools (lynis, chkrootkit, rkhunter) - install if needed
+  # - additional security tools (lynis, rkhunter) - install if needed
   # - additional backup tools (rclone, restic) - install per-machine if needed
   # - virt-viewer - not needed on headless servers
   # - vnstat, supervisor, logrotate, sysstat - available but not essential

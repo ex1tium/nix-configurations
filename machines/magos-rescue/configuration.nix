@@ -11,7 +11,7 @@
     hardware = {
       kernel = "stable";
       thunderbolt.enable = true;
-      debug = true;
+      debug = false;
     };
   };
 
@@ -28,10 +28,12 @@
   services.twingate.enable = lib.mkForce false;
 
   powerManagement.enable = true;
-  systemd.sleep.extraConfig = ''
-    AllowHibernation=no
-    AllowSuspendThenHibernate=no
-  '';
+  systemd.sleep.settings = {
+    Sleep = {
+      AllowHibernation = false;
+      AllowSuspendThenHibernate = false;
+    };
+  };
 
   time.timeZone = "Europe/Helsinki";
 

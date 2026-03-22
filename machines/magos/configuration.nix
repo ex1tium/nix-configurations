@@ -1,4 +1,4 @@
-{ lib, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   imports = [
@@ -16,7 +16,7 @@
       environment = "plasma";
       displayManager = "sddm";
       enableX11 = true;
-      enableWayland = false;
+      enableWayland = true;
     };
 
     features.distrobox.enable = true;
@@ -25,7 +25,7 @@
       kernel = "stable";
       gpu.detection = "intel";
       thunderbolt.enable = true;
-      debug = true;
+      debug = false;
     };
   };
 
@@ -43,10 +43,13 @@
   services.twingate.enable = true;
 
   powerManagement.enable = true;
-  systemd.sleep.extraConfig = ''
-    AllowHibernation=no
-    AllowSuspendThenHibernate=no
-  '';
+
+  systemd.sleep.settings = {
+    Sleep = {
+      SuspendState = "mem";
+      HibernateDelaySec = "1h";
+    };
+  };
 
   time.timeZone = "Europe/Helsinki";
 
@@ -73,11 +76,6 @@
 
   services.displayManager.sddm.enable = true;
   services.desktopManager.plasma6.enable = true;
-  services.displayManager.defaultSession = "plasmax11";
-  services.displayManager.sddm = {
-    wayland.enable = lib.mkForce false;
-    settings.General.DisplayServer = "x11";
-  };
 
   services.printing.enable = true;
 
@@ -96,6 +94,10 @@
       };
     };
   };
+
+#  nixpkgs.config.permittedInsecurePackages = [
+#    "intel-media-sdk-23.2.2"
+#  ];
 
   programs.firefox.enable = true;
 

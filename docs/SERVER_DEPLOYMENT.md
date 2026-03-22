@@ -232,7 +232,7 @@ The server profile includes basic security hardening:
 services = {
   # Additional security tools
   lynis.enable = true;           # Security auditing
-  rkhunter.enable = true;        # Rootkit detection
+  #rkhunter.enable = true;        # Rootkit detection
   
   # Enhanced monitoring
   auditd.enable = true;          # Audit daemon

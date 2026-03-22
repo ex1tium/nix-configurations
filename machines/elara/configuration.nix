@@ -45,8 +45,8 @@
       # Point to the machine-specific hardware facts file.
       facterFile = ./facter.json;
 
-      # Enhanced hardware detection debug mode for testing/validation
-      debug = true;
+      # Keep debug output disabled in normal evaluation paths.
+      debug = false;
 
     };
   };

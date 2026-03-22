@@ -87,7 +87,7 @@ with lib;
       (with pkgs; [ browsh ]) ++  # Text-based web browser for headless/remote systems
       optionals config.mySystem.features.desktop.enable (with pkgs; [
         # Desktop-specific packages
-        pinentry-gtk2
+        pinentry-qt
         xsel
         xclip
       ]);

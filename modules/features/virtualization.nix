@@ -100,10 +100,6 @@ with lib;
         package = pkgs.qemu_kvm;
         runAsRoot = false;
         swtpm.enable = true;  # TPM emulation
-        ovmf = {
-          enable = true;      # UEFI support
-          packages = [ pkgs.OVMFFull.fd ];
-        };
       };
     };
 
@@ -116,9 +112,9 @@ with lib;
     # Waydroid for Android apps (optional)
     virtualisation.waydroid.enable = mkDefault false;
 
-    # LXC/LXD containers (enabled by default for lightweight containers)
+    # LXC/Incus containers (enabled by default for lightweight containers)
     virtualisation.lxc.enable = mkDefault true;
-    virtualisation.lxd.enable = mkDefault true;  # LXD support
+    virtualisation.incus.enable = mkDefault true;
 
     # Container and virtualization packages
     environment.systemPackages = with pkgs; [
@@ -166,9 +162,9 @@ with lib;
       kaniko          # Container image builder
       buildkit        # Advanced build features
 
-      # LXC/LXD tools
+      # LXC/Incus tools
       lxc             # LXC container tools
-      lxd-lts         # LXD daemon and client (LTS version)
+      incus-lts       # Incus daemon and client (LTS version)
     ] ++ optionals config.mySystem.features.desktop.enable (with pkgs; [
       # GUI tools
       virt-manager
@@ -182,7 +178,7 @@ with lib;
       "libvirtd"
       "kvm"
       "qemu-libvirtd"
-      "lxd"           # LXD access
+      "incus-admin"   # Incus administration access
     ];
 
     # Ensure virtualization groups exist
@@ -192,7 +188,7 @@ with lib;
       libvirtd = {};
       kvm = {};
       qemu-libvirtd = {};
-      lxd = {};       # LXD group
+      incus-admin = {};
     };
 
     # Kernel modules for virtualization
@@ -238,6 +234,8 @@ with lib;
       "net.ipv4.tcp_wmem" = "4096 12582912 134217728";
       "net.core.netdev_max_backlog" = 5000;
     };
+
+    networking.nftables.enable = mkDefault true;
 
     # Firewall configuration for virtualization
     networking.firewall = {

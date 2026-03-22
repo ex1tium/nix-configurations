@@ -59,7 +59,7 @@
   # Essential tools for encryption and security
   securityTools = with pkgs; [
     gnupg        # GNU Privacy Guard
-    pinentry     # PIN entry for GPG
+    pinentry-qt     # PIN entry for GPG
   ];
 
   # Development Core Tools - Essential development utilities

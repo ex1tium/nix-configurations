@@ -155,13 +155,24 @@
       ) machines;
 
     }
-    // flake-utils.lib.eachDefaultSystem (
+    // flake-utils.lib.eachSystem [ "x86_64-linux" ] (
       system:
       let
         pkgs = import nixpkgs {
           inherit system;
           config.allowUnfree = true;
         };
+        mkScriptApp = name: description: text:
+          let
+            drv = pkgs.writeShellScriptBin name text;
+          in
+          {
+            type = "app";
+            program = "${drv}/bin/${name}";
+            meta = {
+              inherit description;
+            };
+          };
       in
       {
         # Development shells
@@ -170,7 +181,7 @@
             name = "nix-config-dev";
             buildInputs = with pkgs; [
               nixd
-              nixfmt-rfc-style
+              nixfmt
               deadnix
               statix
               git
@@ -178,7 +189,7 @@
             ];
             shellHook = ''
               echo "🔧 Modern Nix Configuration Development Environment"
-              echo "Available tools: nixd, nixfmt-rfc-style, deadnix, statix"
+              echo "Available tools: nixd, nixfmt, deadnix, statix"
             '';
           };
 
@@ -188,27 +199,22 @@
           rust = import ./modules/devshells/rust.nix { inherit pkgs; };
         };
 
-        formatter = pkgs.nixfmt-rfc-style;
+        formatter = pkgs.nixfmt;
 
         apps = {
-          update = flake-utils.lib.mkApp {
-            drv = pkgs.writeShellScriptBin "update" ''
+          update = mkScriptApp "update" "Update flake inputs and refresh the lockfile" ''
               echo "🔄 Updating flake inputs..."
               nix flake update --commit-lock-file
               echo "✅ Flake inputs updated and committed!"
             '';
-          };
 
-          check = flake-utils.lib.mkApp {
-            drv = pkgs.writeShellScriptBin "check" ''
+          check = mkScriptApp "check" "Run flake checks for all configured systems" ''
               echo "🔍 Checking configuration..."
               nix flake check --all-systems
               echo "✅ Configuration check completed!"
             '';
-          };
 
-          upgrade-check = flake-utils.lib.mkApp {
-            drv = pkgs.writeShellScriptBin "upgrade-check" ''
+          upgrade-check = mkScriptApp "upgrade-check" "Update inputs and test a rebuild for the current host" ''
               set -euo pipefail
 
               echo "🔍 Checking for updates..."
@@ -224,10 +230,8 @@
               echo "✅ Ready to apply with: sudo nixos-rebuild switch --flake .#$hostname"
               echo "📚 See docs/UPGRADE_GUIDE.md for detailed procedures"
             '';
-          };
 
-          deploy = flake-utils.lib.mkApp {
-            drv = pkgs.writeShellScriptBin "deploy" ''
+          deploy = mkScriptApp "deploy" "Build and switch the NixOS configuration for the current host" ''
               set -euo pipefail
 
               hostname=$(${pkgs.hostname}/bin/hostname)
@@ -242,7 +246,6 @@
               echo "✅ Deployment completed!"
               echo "📋 Check system status with: systemctl --failed"
             '';
-          };
         };
       }
     );

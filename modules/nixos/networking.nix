@@ -76,24 +76,19 @@ with lib;
       };
 
     # DNS resolution
-    services.resolved = {
-      enable = mkDefault true;
-      dnssec = mkDefault "allow-downgrade";
-      domains = mkDefault [ "~." ];
-      fallbackDns = [
-        "1.1.1.1"
-        "1.0.0.1"
-        "8.8.8.8"
-        "8.8.4.4"
-      ];
-      extraConfig = ''
-        DNS=1.1.1.1 1.0.0.1 8.8.8.8 8.8.4.4
-        FallbackDNS=1.1.1.1 1.0.0.1
-        Domains=~.
-        DNSSEC=allow-downgrade
-        DNSOverTLS=opportunistic
-      '';
+services.resolved = {
+  enable = true;
+
+  settings = {
+    Resolve = {
+      DNS = [ "1.1.1.1" "1.0.0.1" "8.8.8.8" "8.8.4.4" ];
+      FallbackDNS = [ "1.1.1.1" "1.0.0.1" ];
+      Domains = [ "~." ];
+      DNSSEC = "allow-downgrade";
+      DNSOverTLS = "opportunistic";
     };
+  };
+};
 
     # Network time synchronization
     services.timesyncd = {
