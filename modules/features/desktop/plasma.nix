@@ -18,7 +18,7 @@ with lib;
     # Display Manager - SDDM with Wayland support
     services.displayManager.sddm = {
       enable = true;
-      wayland.enable = config.mySystem.features.desktop.enableWayland;
+      wayland.enable = false;
       theme = mkDefault "breeze";
       settings = {
         Theme = {
@@ -64,8 +64,6 @@ with lib;
 
     # KDE-specific environment variables
     environment.sessionVariables = {
-      # Qt/KDE theming
-      QT_QPA_PLATFORM = mkIf config.mySystem.features.desktop.enableWayland "wayland;xcb";
       QT_STYLE_OVERRIDE = "breeze";
       QT_QPA_PLATFORMTHEME = "kde";
 
@@ -76,7 +74,6 @@ with lib;
       # Wayland-specific environment variables
       NIXOS_OZONE_WL = "1";              # Chromium/Electron Wayland
       MOZ_ENABLE_WAYLAND = "1";          # Firefox Wayland
-      XDG_SESSION_TYPE = "wayland";
       QT_WAYLAND_DISABLE_WINDOWDECORATION = "1";
     } // optionalAttrs config.mySystem.features.desktop.enableX11 {
       # X11-specific environment variables

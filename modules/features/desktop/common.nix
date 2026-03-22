@@ -69,6 +69,7 @@ in
         # Common packages for all GPU vendors
         libvdpau-va-gl
         mesa
+        xcb-util-cursor
       ];
     };
 
@@ -149,9 +150,6 @@ in
 
     # Desktop Environment Variables
     environment.sessionVariables = {
-      NIXOS_OZONE_WL = "1";
-      MOZ_ENABLE_WAYLAND = "1";
-      QT_QPA_PLATFORM = "wayland;xcb";
       QT_STYLE_OVERRIDE = "breeze";
     };
 

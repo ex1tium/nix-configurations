@@ -82,7 +82,6 @@ with lib;
       # XFCE-specific
       XDG_CURRENT_DESKTOP = "XFCE";
       XDG_SESSION_DESKTOP = "xfce";
-      XDG_SESSION_TYPE = "x11";          # Force X11 for XFCE
 
       # Disable heavy animations for performance
       GTK_CSD = "0";                     # Disable client-side decorations

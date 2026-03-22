@@ -99,28 +99,7 @@ in
       xwayland                           # X11 compatibility layer
     ];
 
-    # Environment variables for display servers
-    environment.sessionVariables = {
-      # Common variables
-      XDG_SESSION_TYPE = mkIf isWaylandEnabled "wayland";
-      
-      # X11-specific variables
-    } // optionalAttrs isX11Enabled {
-      DISPLAY = ":0";
-      XAUTHORITY = "$HOME/.Xauthority";
-    } // optionalAttrs isWaylandEnabled {
-      # Wayland-specific variables
-      WAYLAND_DISPLAY = "wayland-0";
-      QT_QPA_PLATFORM = "wayland;xcb";
-      GDK_BACKEND = "wayland,x11";
-      SDL_VIDEODRIVER = "wayland";
-      CLUTTER_BACKEND = "wayland";
-      
-      # Application-specific Wayland support
-      NIXOS_OZONE_WL = "1";              # Chromium/Electron
-      MOZ_ENABLE_WAYLAND = "1";          # Firefox
-      _JAVA_AWT_WM_NONREPARENTING = "1"; # Java applications
-    };
+    # Display/session backend variables are set by the display manager and session.
 
     # Security and permissions
     security = {
@@ -168,28 +147,30 @@ in
     # Desktop environment specific display server configuration
     
     # KDE Plasma Wayland optimizations
-    environment.etc."xdg/kwinrc".text = mkIf (desktopEnvironment == "plasma" && isWaylandEnabled) ''
-      [Wayland]
-      InputMethod=
-      XwaylandScale=1
-      
-      [Compositing]
-      Backend=OpenGL
-      GLCore=true
-      HideCursor=true
-      OpenGLIsUnsafe=false
-      WindowsBlockCompositing=true
-      
-      [Effect-PresentWindows]
-      BorderActivate=9
-      BorderActivateAll=7
-      BorderActivateClass=9
-      
-      [MouseBindings]
-      CommandActiveTitlebar1=Raise
-      CommandActiveTitlebar2=Nothing
-      CommandActiveTitlebar3=Operations menu
-    '';
+    environment.etc = mkIf (desktopEnvironment == "plasma" && isWaylandEnabled) {
+      "xdg/kwinrc".text = ''
+        [Wayland]
+        InputMethod=
+        XwaylandScale=1
+
+        [Compositing]
+        Backend=OpenGL
+        GLCore=true
+        HideCursor=true
+        OpenGLIsUnsafe=false
+        WindowsBlockCompositing=true
+
+        [Effect-PresentWindows]
+        BorderActivate=9
+        BorderActivateAll=7
+        BorderActivateClass=9
+
+        [MouseBindings]
+        CommandActiveTitlebar1=Raise
+        CommandActiveTitlebar2=Nothing
+        CommandActiveTitlebar3=Operations menu
+      '';
+    };
 
     # XFCE X11 optimizations are now handled in the XFCE module
 

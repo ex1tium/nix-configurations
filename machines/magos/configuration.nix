@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
 
 {
   imports = [
@@ -16,7 +16,7 @@
       environment = "plasma";
       displayManager = "sddm";
       enableX11 = true;
-      enableWayland = true;
+      enableWayland = false;
     };
 
     features.distrobox.enable = true;
@@ -73,6 +73,11 @@
 
   services.displayManager.sddm.enable = true;
   services.desktopManager.plasma6.enable = true;
+  services.displayManager.defaultSession = "plasmax11";
+  services.displayManager.sddm = {
+    wayland.enable = lib.mkForce false;
+    settings.General.DisplayServer = "x11";
+  };
 
   services.printing.enable = true;
 
