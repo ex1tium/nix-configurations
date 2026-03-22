@@ -70,7 +70,6 @@
     vim
     curl
     wget
-    vscode
     pciutils
     usbutils
     btrfs-progs

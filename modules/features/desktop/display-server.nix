@@ -13,11 +13,11 @@ let
   gpuType = config.mySystem.hardware.gpu.vendor;
   
   # GPU-vendor specific X11 video drivers
-  x11VideoDrivers = with pkgs.xorg;
-    [ xf86inputlibinput ] ++  # Always include libinput
-    (optionals (gpuType == "intel") [ xf86videointel ]) ++
-    (optionals (gpuType == "amd") [ xf86videoati ]) ++
-    (optionals (gpuType == "nvidia") [ xf86videonouveau ]);
+  x11VideoDrivers =
+    [ pkgs."xf86-input-libinput" ] ++  # Always include libinput
+    (optionals (gpuType == "intel") [ pkgs."xf86-video-intel" ]) ++
+    (optionals (gpuType == "amd") [ pkgs."xf86-video-ati" ]) ++
+    (optionals (gpuType == "nvidia") [ pkgs."xf86-video-nouveau" ]);
 in
 {
   config = mkIf desktopCfg.enable {
@@ -85,11 +85,11 @@ in
     environment.systemPackages = with pkgs; [
       # X11 utilities
     ] ++ optionals isX11Enabled [
-      xorg.xrandr                        # Display configuration
-      xorg.xdpyinfo                      # Display information
-      xorg.xwininfo                      # Window information
-      xorg.xprop                         # Window properties
-      xorg.xev                           # Event viewer
+      xrandr                             # Display configuration
+      xdpyinfo                           # Display information
+      xwininfo                           # Window information
+      xprop                              # Window properties
+      xev                                # Event viewer
       arandr                             # GUI display configuration
       autorandr                          # Automatic display configuration
     ] ++ optionals isWaylandEnabled [
