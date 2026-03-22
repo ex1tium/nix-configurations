@@ -63,9 +63,13 @@ with lib;
       };
 
       # Kernel security parameters
-      boot.kernel.sysctl = {
+      boot.kernel.sysctl =
+        optionalAttrs (!(config.virtualisation.incus.enable or false)) {
+          # Incus already sets this and the option is unique.
+          "kernel.dmesg_restrict" = mkDefault 1;
+        }
+        // {
         # Kernel hardening
-        "kernel.dmesg_restrict" = mkDefault 1;
         "kernel.kptr_restrict" = mkForce 2;
         "kernel.unprivileged_bpf_disabled" = mkDefault 1;
         "kernel.yama.ptrace_scope" = mkDefault 1;
