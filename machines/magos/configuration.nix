@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 {
   imports = [
@@ -21,7 +21,12 @@
 
     features.distrobox.enable = true;
 
-    hardware.kernel = "stable";
+    hardware = {
+      kernel = "stable";
+      gpu.detection = "intel";
+      thunderbolt.enable = true;
+      debug = true;
+    };
   };
 
   boot.loader.systemd-boot.enable = true;
@@ -32,6 +37,8 @@
   };
 
   networking.networkmanager.enable = true;
+
+  services.hardware.bolt.enable = true;
 
   services.twingate.enable = true;
 
@@ -102,6 +109,8 @@
     vim
     curl
     wget
+    pciutils
+    usbutils
     btrfs-progs
     cryptsetup
   ];

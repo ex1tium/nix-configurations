@@ -1,7 +1,13 @@
 # Modern NixOS Module System
 # This file provides the main module interface with proper options and types
 
-{ config, lib, globalConfig ? {}, finalFeatures ? {}, ... }:
+{
+  config,
+  lib,
+  globalConfig ? { },
+  finalFeatures ? { },
+  ...
+}:
 
 with lib;
 
@@ -18,8 +24,8 @@ in
     ./networking.nix
     ./security.nix
     ./git.nix
-    ./hardware-compatibility.nix  # Hardware compatibility detection and fixes
-    ../validation.nix  # Comprehensive validation and error handling
+    ./hardware-compatibility.nix # Hardware compatibility detection and fixes
+    ../validation.nix # Comprehensive validation and error handling
   ];
 
   # Modern option definitions with proper types using centralized defaults
@@ -69,7 +75,12 @@ in
               options = {
                 enable = mkEnableOption "desktop environment";
                 environment = mkOption {
-                  type = types.enum [ "plasma" "gnome" "xfce" "i3" ];
+                  type = types.enum [
+                    "plasma"
+                    "gnome"
+                    "xfce"
+                    "i3"
+                  ];
                   default = defaults.features.desktop.environment;
                   description = "Desktop environment to use";
                 };
@@ -85,14 +96,18 @@ in
                   description = "Enable X11 display server support";
                 };
                 displayManager = mkOption {
-                  type = types.enum [ "sddm" "gdm" "lightdm" ];
+                  type = types.enum [
+                    "sddm"
+                    "gdm"
+                    "lightdm"
+                  ];
                   default = defaults.features.desktop.displayManager;
                   description = "Display manager to use";
                 };
                 enableRemoteDesktop = mkEnableOption "remote desktop access";
               };
             };
-            default = {};
+            default = { };
             description = "Desktop environment configuration";
           };
 
@@ -101,12 +116,29 @@ in
               options = {
                 enable = mkEnableOption "development tools";
                 languages = mkOption {
-                  type = types.listOf (types.enum [ "nodejs" "go" "python" "rust" "nix" "java" "cpp" ]);
+                  type = types.listOf (
+                    types.enum [
+                      "nodejs"
+                      "go"
+                      "python"
+                      "rust"
+                      "nix"
+                      "java"
+                      "cpp"
+                    ]
+                  );
                   default = defaults.features.development.languages;
                   description = "Programming languages to support";
                 };
                 editors = mkOption {
-                  type = types.listOf (types.enum [ "vscode" "neovim" "vim" "emacs" ]);
+                  type = types.listOf (
+                    types.enum [
+                      "vscode"
+                      "neovim"
+                      "vim"
+                      "emacs"
+                    ]
+                  );
                   default = defaults.features.development.editors;
                   description = "Text editors to install";
                 };
@@ -115,7 +147,7 @@ in
                 enableDatabases = mkEnableOption "database development tools";
               };
             };
-            default = {};
+            default = { };
             description = "Development environment configuration";
           };
 
@@ -130,7 +162,7 @@ in
                 enableWaydroid = mkEnableOption "Waydroid Android emulation";
               };
             };
-            default = {};
+            default = { };
             description = "Virtualization and container configuration";
           };
 
@@ -143,7 +175,7 @@ in
                 enableWebServer = mkEnableOption "web server capabilities";
               };
             };
-            default = {};
+            default = { };
             description = "Server-specific configuration";
           };
 
@@ -175,12 +207,12 @@ in
                   retentionPolicy = mkOption {
                     type = types.attrsOf types.str;
                     default = {
-                      TIMELINE_MIN_AGE = "1800";      # 30 minutes
-                      TIMELINE_LIMIT_HOURLY = "10";   # Keep 10 hourly snapshots
-                      TIMELINE_LIMIT_DAILY = "10";    # Keep 10 daily snapshots
-                      TIMELINE_LIMIT_WEEKLY = "0";    # No weekly snapshots
-                      TIMELINE_LIMIT_MONTHLY = "0";   # No monthly snapshots
-                      TIMELINE_LIMIT_YEARLY = "0";    # No yearly snapshots
+                      TIMELINE_MIN_AGE = "1800"; # 30 minutes
+                      TIMELINE_LIMIT_HOURLY = "10"; # Keep 10 hourly snapshots
+                      TIMELINE_LIMIT_DAILY = "10"; # Keep 10 daily snapshots
+                      TIMELINE_LIMIT_WEEKLY = "0"; # No weekly snapshots
+                      TIMELINE_LIMIT_MONTHLY = "0"; # No monthly snapshots
+                      TIMELINE_LIMIT_YEARLY = "0"; # No yearly snapshots
                     };
                     description = "Retention policy for root snapshots";
                   };
@@ -204,24 +236,24 @@ in
                   retentionPolicy = mkOption {
                     type = types.attrs;
                     default = {
-                      TIMELINE_MIN_AGE = "1800";      # 30 minutes
-                      TIMELINE_LIMIT_HOURLY = "24";   # Keep 24 hourly snapshots (1 day)
-                      TIMELINE_LIMIT_DAILY = "7";     # Keep 7 daily snapshots (1 week)
-                      TIMELINE_LIMIT_WEEKLY = "4";    # Keep 4 weekly snapshots (1 month)
-                      TIMELINE_LIMIT_MONTHLY = "3";   # Keep 3 monthly snapshots
-                      TIMELINE_LIMIT_YEARLY = "0";    # No yearly snapshots
+                      TIMELINE_MIN_AGE = "1800"; # 30 minutes
+                      TIMELINE_LIMIT_HOURLY = "24"; # Keep 24 hourly snapshots (1 day)
+                      TIMELINE_LIMIT_DAILY = "7"; # Keep 7 daily snapshots (1 week)
+                      TIMELINE_LIMIT_WEEKLY = "4"; # Keep 4 weekly snapshots (1 month)
+                      TIMELINE_LIMIT_MONTHLY = "3"; # Keep 3 monthly snapshots
+                      TIMELINE_LIMIT_YEARLY = "0"; # No yearly snapshots
                     };
                     description = "Retention policy for home snapshots";
                   };
                 };
               };
             };
-            default = {};
+            default = { };
             description = "BTRFS snapshots configuration";
           };
         };
       };
-      default = if finalFeatures != {} then finalFeatures else {};
+      default = if finalFeatures != { } then finalFeatures else { };
       description = "System features configuration";
     };
 
@@ -229,16 +261,33 @@ in
       type = types.submodule {
         options = {
           kernel = mkOption {
-            type = types.enum [ "stable" "latest" "lts" ];
+            type = types.enum [
+              "stable"
+              "latest"
+              "lts"
+            ];
             default = defaults.hardware.kernel;
             description = "Kernel version to use";
           };
           enableVirtualization = mkEnableOption "hardware virtualization support";
           enableRemoteDesktop = mkEnableOption "remote desktop hardware acceleration";
+          thunderbolt = mkOption {
+            type = types.submodule {
+              options = {
+                enable = mkOption {
+                  type = types.bool;
+                  default = defaults.hardware.thunderbolt.enable;
+                  description = "Enable Thunderbolt support on systems that need external displays or docks.";
+                };
+              };
+            };
+            default = { };
+            description = "Thunderbolt hardware configuration";
+          };
           # GPU configuration is defined in hardware-compatibility.nix module
         };
       };
-      default = {};
+      default = { };
       description = "Hardware-specific configuration";
     };
   };
