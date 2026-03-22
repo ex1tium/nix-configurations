@@ -1,4 +1,4 @@
-{ pkgs, lib, ... }:
+{ pkgs, ... }:
 
 {
   imports = [
@@ -114,24 +114,4 @@
     btrfs-progs
     cryptsetup
   ];
-
-  specialisation.rescue.configuration = {
-    system.nixos.tags = [ "rescue" ];
-
-    services.openssh.enable = true;
-
-    environment.systemPackages = with pkgs; [
-      vscode
-      gitFull
-      git-lfs
-      gh
-      vim
-      curl
-      wget
-      btrfs-progs
-      cryptsetup
-      pciutils
-      usbutils
-    ];
-  };
 }
