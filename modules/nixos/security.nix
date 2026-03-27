@@ -179,22 +179,14 @@ with lib;
 
         # Service hardening
         services = {
-          # Harden systemd services
+          # logind manages seat/device access for display managers and input devices.
+          # Heavy sandboxing (RestrictNamespaces, NoNewPrivileges, ProtectSystem=strict)
+          # breaks its ability to grant evdev access to SDDM/KWin, preventing keyboard input.
+          # Keep only safe, non-breaking restrictions.
           systemd-logind.serviceConfig = {
-            SystemCallFilter = [
-              "@system-service"
-              "~@privileged"
-            ];
             SystemCallArchitectures = "native";
-            MemoryDenyWriteExecute = true;
-            NoNewPrivileges = true;
-            ProtectSystem = "strict";
             ProtectHome = true;
-            ProtectKernelTunables = true;
-            ProtectKernelModules = true;
-            ProtectControlGroups = true;
             RestrictRealtime = true;
-            RestrictNamespaces = true;
           };
         };
       };

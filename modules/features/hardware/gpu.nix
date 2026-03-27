@@ -15,6 +15,9 @@ in
   config = mkMerge [
     # Intel GPU Configuration
     (mkIf (gpuType == "intel") {
+      # Use modesetting driver (preferred over legacy xf86-video-intel on all modern Intel GPUs)
+      services.xserver.videoDrivers = [ "modesetting" ];
+
       # Intel graphics drivers
       hardware.graphics = {
         enable = true;

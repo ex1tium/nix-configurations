@@ -18,7 +18,8 @@ with lib;
       services.xserver.xkb = {
         layout = mkDefault "fi";
         variant = mkDefault "";
-        options = mkDefault "grp:alt_shift_toggle,compose:ralt";
+        # No compose:ralt — AltGr must remain free for Finnish special characters (@ € etc.)
+        options = mkDefault "";
       };
 
       # Console keyboard layout
@@ -60,14 +61,8 @@ with lib;
       # Time zone configuration
       time.timeZone = mkDefault "Europe/Helsinki";
 
-      # Input method configuration for Finnish
-      i18n.inputMethod = {
-        enable = mkDefault true;
-        type = mkDefault "ibus";
-        ibus.engines = with pkgs.ibus-engines; [
-          # Add Finnish input methods if needed
-        ];
-      };
+      # Input method: disabled — IBus/fcitx can intercept AltGr and break special character input
+      # i18n.inputMethod is intentionally left unconfigured
 
       # Environment variables for proper locale handling
       environment.sessionVariables = {
@@ -77,7 +72,7 @@ with lib;
 
         # Finnish keyboard specific
         XKB_DEFAULT_LAYOUT = mkDefault "fi";
-        XKB_DEFAULT_OPTIONS = mkDefault "grp:alt_shift_toggle,compose:ralt";
+        XKB_DEFAULT_OPTIONS = mkDefault "";
       };
 
       # Fonts with Finnish character support

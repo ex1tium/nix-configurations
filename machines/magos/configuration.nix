@@ -44,6 +44,10 @@
 
   powerManagement.enable = true;
 
+  # Host-local compatibility for non-Nix dynamically linked binaries
+  # (e.g. VS Code extensions shipping generic Linux executables like Claude).
+  programs.nix-ld.enable = true;
+
   systemd.sleep.settings = {
     Sleep = {
       SuspendState = "mem";
