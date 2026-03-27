@@ -45,8 +45,15 @@
   powerManagement.enable = true;
 
   # Host-local compatibility for non-Nix dynamically linked binaries
-  # (e.g. VS Code extensions shipping generic Linux executables like Claude).
-  programs.nix-ld.enable = true;
+  # (e.g. VS Code extensions, distrobox-exported binaries, Claude).
+  programs.nix-ld = {
+    enable = true;
+    libraries = with pkgs; [
+      stdenv.cc.cc   # libstdc++, libgcc_s — needed by most compiled binaries
+      zlib           # ubiquitous compression library
+      openssl        # TLS — needed by many Rust/Go binaries
+    ];
+  };
 
   systemd.sleep.settings = {
     Sleep = {
@@ -124,6 +131,8 @@
     usbutils
     btrfs-progs
     cryptsetup
+    gcc        # C compiler / cc wrapper — required by Rust (and cargo) to link binaries
+    binutils   # ld, ar, etc. — GNU linker toolchain
   ];
 
   specialisation = {
