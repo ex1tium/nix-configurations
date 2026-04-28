@@ -18,7 +18,7 @@ with lib;
     # Display Manager - SDDM with Wayland support
     services.displayManager.sddm = {
       enable = true;
-      wayland.enable = config.mySystem.features.desktop.enableWayland;
+      wayland.enable = config.mySystem.features.desktop.enableWaylandGreeter;
       theme = mkDefault "breeze";
       settings = {
         Theme = {

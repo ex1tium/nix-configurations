@@ -33,6 +33,7 @@ in
         enable = mkDefault defaults.features.desktop.enable;
         environment = mkDefault defaults.features.desktop.environment;
         displayManager = mkDefault defaults.features.desktop.displayManager;
+        enableWaylandGreeter = mkDefault defaults.features.desktop.enableWaylandGreeter;
         enableWayland = mkDefault defaults.features.desktop.enableWayland;
         enableX11 = mkDefault defaults.features.desktop.enableX11;
         enableRemoteDesktop = mkDefault defaults.features.desktop.enableRemoteDesktop;

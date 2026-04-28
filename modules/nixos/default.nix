@@ -104,6 +104,11 @@ in
                   default = defaults.features.desktop.displayManager;
                   description = "Display manager to use";
                 };
+                enableWaylandGreeter = mkOption {
+                  type = types.bool;
+                  default = defaults.features.desktop.enableWaylandGreeter;
+                  description = "Run the display manager greeter itself on Wayland";
+                };
                 enableRemoteDesktop = mkEnableOption "remote desktop access";
               };
             };

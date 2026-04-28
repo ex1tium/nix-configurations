@@ -15,6 +15,7 @@
       enable = true;
       environment = "plasma";
       displayManager = "sddm";
+      enableWaylandGreeter = false;
       enableX11 = true;
       enableWayland = true;
     };
@@ -111,6 +112,7 @@
 #  ];
 
   programs.firefox.enable = true;
+  programs.steam.enable = true;
 
   users.users.magos = {
     description = "Magos";

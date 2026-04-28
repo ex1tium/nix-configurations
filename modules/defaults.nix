@@ -66,6 +66,7 @@ with lib;
       enable = false; # Disabled by default (enabled in desktop profiles)
       environment = "plasma"; # KDE Plasma 6 as primary desktop
       displayManager = "sddm"; # SDDM display manager for Plasma
+      enableWaylandGreeter = false; # Keep the greeter on X11 unless explicitly enabled
       enableWayland = true; # Wayland support enabled
       enableX11 = true; # X11 fallback support
       enableRemoteDesktop = false; # Remote desktop disabled by default
