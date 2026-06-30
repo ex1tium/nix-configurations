@@ -123,6 +123,7 @@
 
   environment.systemPackages = with pkgs; [
     vscode
+    vivaldi
     gitFull
     git-lfs
     gh
