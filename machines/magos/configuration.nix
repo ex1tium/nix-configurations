@@ -41,6 +41,8 @@
 
   services.hardware.bolt.enable = true;
 
+  services.netbird.enable = true;
+
   services.twingate.enable = true;
 
   powerManagement.enable = true;
@@ -122,6 +124,7 @@
   };
 
   environment.systemPackages = with pkgs; [
+    netbird-ui
     vscode
     vivaldi
     gitFull
