@@ -1,10 +1,18 @@
 {
   "nix.enableLanguageServer": true,
-  "nix.serverPath": "nixd",
+  "nix.serverPath": [
+    "nix",
+    "develop",
+    "-c",
+    "nixd"
+  ],
   "nix.serverSettings": {
     "nixd": {
       "formatting": {
         "command": [
+          "nix",
+          "develop",
+          "-c",
           "nixfmt"
         ]
       },
