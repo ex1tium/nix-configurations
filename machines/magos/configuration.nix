@@ -58,6 +58,13 @@
     ];
   };
 
+  # Run .AppImage files directly (registers a binfmt handler that
+  # transparently wraps execution via appimage-run's FHS environment).
+  programs.appimage = {
+    enable = true;
+    binfmt = true;
+  };
+
   systemd.sleep.settings = {
     Sleep = {
       SuspendState = "mem";

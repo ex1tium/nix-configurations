@@ -16,7 +16,7 @@ with lib;
     services.desktopManager.plasma6.enable = true;
 
     # Greeter regressions can leave session empty ("Invalid session \"\"").
-    # Force a valid default session so logins can proceed even if session
+    # Keep a safe default session so logins can proceed even if session
     # selection UI glitches. Prefer Wayland when it is enabled.
     services.displayManager.defaultSession = mkDefault (
       if config.mySystem.features.desktop.enableWayland then "plasma" else "plasmax11"
@@ -26,22 +26,24 @@ with lib;
     services.displayManager.sddm = {
       enable = true;
       wayland.enable = config.mySystem.features.desktop.enableWaylandGreeter;
-      theme = mkForce "elarun";
+      theme = mkDefault "breeze";
       settings = {
         Theme = {
-          Current = mkForce "elarun";
+          Current = "breeze";
           CursorTheme = "breeze_cursors";
           CursorSize = 24;
+          DisableAvatarsThreshold = 1;
         };
         General = {
           HaltCommand = "/run/current-system/systemd/bin/systemctl poweroff";
           RebootCommand = "/run/current-system/systemd/bin/systemctl reboot";
         };
-        Wayland = mkIf config.mySystem.features.desktop.enableWayland {
-          SessionDir = "/run/current-system/sw/share/wayland-sessions";
-        };
-        X11 = mkIf config.mySystem.features.desktop.enableX11 {
-          SessionDir = "/run/current-system/sw/share/xsessions";
+        Users = {
+          # Avoid greeter UserList model crashes seen on Plasma 6.6 + Qt 6
+          # where role types/required properties can break delegate creation.
+          HideUsers = "";
+          MaximumUid = 65000;
+          MinimumUid = 1000;
         };
       };
     };
