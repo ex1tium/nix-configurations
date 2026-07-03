@@ -14,15 +14,22 @@ with lib;
     
     # KDE Plasma 6 Desktop Environment
     services.desktopManager.plasma6.enable = true;
+
+    # Greeter regressions can leave session empty ("Invalid session \"\"").
+    # Force a valid default session so logins can proceed even if session
+    # selection UI glitches. Prefer Wayland when it is enabled.
+    services.displayManager.defaultSession = mkDefault (
+      if config.mySystem.features.desktop.enableWayland then "plasma" else "plasmax11"
+    );
     
     # Display Manager - SDDM with Wayland support
     services.displayManager.sddm = {
       enable = true;
       wayland.enable = config.mySystem.features.desktop.enableWaylandGreeter;
-      theme = mkDefault "breeze";
+      theme = mkForce "elarun";
       settings = {
         Theme = {
-          Current = "breeze";
+          Current = mkForce "elarun";
           CursorTheme = "breeze_cursors";
           CursorSize = 24;
         };
