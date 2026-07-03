@@ -9,17 +9,16 @@ pkgs.mkShell {
   buildInputs = with pkgs; [
     # Node.js runtime and package managers
     nodejs_latest
-    nodePackages.npm
-    nodePackages.yarn
-    nodePackages.pnpm
+    yarn
+    pnpm
 
     # TypeScript and language tools
-    nodePackages.typescript
-    nodePackages.typescript-language-server
+    typescript
+    typescript-language-server
 
-    # Linting and formatting (only include packages that exist)
-    nodePackages.eslint
-    nodePackages.prettier
+    # Linting and formatting
+    eslint
+    prettier
 
     # Build system dependencies
     python3 # For node-gyp

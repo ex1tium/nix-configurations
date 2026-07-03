@@ -172,10 +172,10 @@ with lib;
       # System hardening
       systemd = {
         # Coredump handling
-        coredump.extraConfig = ''
-          Storage=none
-          ProcessSizeMax=0
-        '';
+        coredump.settings.Coredump = {
+          Storage = "none";
+          ProcessSizeMax = 0;
+        };
 
         # Service hardening
         services = {
