@@ -33,6 +33,8 @@ shell.nix.local
 
 # Editor files
 .vscode/
+!.vscode/
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo
@@ -245,7 +247,6 @@ _build/
 site/
 
 # IDE and editor specific
-.vscode/settings.json
 .vscode/launch.json
 .vscode/extensions.json
 *.code-workspace

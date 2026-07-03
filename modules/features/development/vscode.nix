@@ -12,6 +12,8 @@ with lib;
     environment.systemPackages = with pkgs; [
       # Use the custom VS Code with cyberdeck theme
       vscode-with-cyberdeck
+      nixd
+      nixfmt
     ];
 
     # VS Code system configuration
@@ -70,6 +72,13 @@ with lib;
       
       "nix.enableLanguageServer" = true;
       "nix.serverPath" = "${pkgs.nixd}/bin/nixd";
+      "nix.serverSettings" = {
+        "nixd" = {
+          "formatting" = {
+            "command" = [ "${pkgs.nixfmt}/bin/nixfmt" ];
+          };
+        };
+      };
       
       # TypeScript/JavaScript
       "typescript.updateImportsOnFileMove.enabled" = "always";

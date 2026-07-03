@@ -20,7 +20,7 @@ final: prev: {
       rust-lang.rust-analyzer
 
       # Nix
-      bbenoist.nix
+      jnoortheen.nix-ide
 
       # Git
       eamodio.gitlens

@@ -124,6 +124,7 @@
   };
 
   environment.systemPackages = with pkgs; [
+    nixd
     netbird-ui
     vscode
     vivaldi
