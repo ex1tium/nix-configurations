@@ -2,6 +2,7 @@
 
 # Nix build results
 result
+result/*
 result-*
 .nix-build-*
 
